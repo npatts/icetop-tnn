@@ -3,3 +3,6 @@
 
 # GraphNeT logs
 /logs
+
+# Python junk
+__pycache__/
