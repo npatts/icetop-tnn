@@ -1,8 +1,10 @@
 import argparse;
 import sys;
+import pathlib;
 
 from .training import cli as training_cli;
-from .util import get_project_root;
+from . import util;
+from . import environment;
 
 def main() -> None:
     """IceTop-TNN entry point"""
@@ -15,7 +17,7 @@ def main() -> None:
                                 default=0,
                                 action='count');
     ap_root_parser.add_argument('--env', type=str, help='override environment.txt path', dest='environment_path',
-                                default=get_project_root()/'environment.txt')
+                                default=util.get_project_root()/'environment.txt')
 
 
     # Datagen command/arguments
@@ -26,6 +28,9 @@ def main() -> None:
 
     # Parse arguments
     args = ap_root_parser.parse_args();
+
+    # Load environment.txt
+    environment.reload(pathlib.Path(args.environment_path).resolve());
 
     # Hand off to subcommands
     match args.subcommand:
