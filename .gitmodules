@@ -1,4 +1,4 @@
 [submodule "external/graphnet"]
 	path = external/graphnet
-	url = ssh://git@github.com/graphnet-team/graphnet.git
+	url = https://github.com/graphnet-team/graphnet.git
 	branch = tag/v1.8.0
