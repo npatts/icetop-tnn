@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 
+# load environment.txt
 if ! [ -f ./environment.txt ]; then
     echo "ERROR: Unable to read environment.txt, are you at the repository root?" >> /dev/stderr;
     exit 1;
 fi;
 source ./environment.txt
 
+# check venv root
 if [ -z "$ICETOP_TNN_VENV_ROOT" ]; then
     echo "ERROR: ICETOP_TNN_VENV_ROOT is not set. Is your environment.txt set up correctly?" >> /dev/stderr;
     exit 1;
@@ -16,7 +18,19 @@ if [ "$ICETOP_TNN_VENV_ROOT" = "/" -o "$ICETOP_TNN_VENV_ROOT" = "" -o "$ICETOP_T
     exit 1;
 fi;
 
+# check that python and pip work
+if ! "$PYTHON_EXECUTABLE" --version; then
+    echo "ERROR: Unable to execute PYTHON_EXECUTABLE" >> /dev/stderr
+    exit 1
+fi;
+if ! "$PIP_EXECUTABLE" --version; then
+    echo "ERROR: Unable to execute PIP_EXECUTABLE" >> /dev/stderr
+    exit 1
+fi;
+
 echo "Virtual environment root is $ICETOP_TNN_VENV_ROOT";
+echo "Python executable is $PYTHON_EXECUTABLE";
+echo "Pip executable is $PIP_EXECUTABLE";
 
 # set up venv
 python3 -m venv "$ICETOP_TNN_VENV_ROOT"
