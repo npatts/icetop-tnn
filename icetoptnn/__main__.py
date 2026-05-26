@@ -3,6 +3,7 @@ import sys;
 import pathlib;
 
 from .training import cli as training_cli;
+from .data import cli as data_cli;
 from . import util;
 from . import environment;
 
@@ -21,7 +22,7 @@ def main() -> None:
 
 
     # Datagen command/arguments
-    ap_datagen_parser = ap_root_subparsers.add_parser('data', help='training data management');
+    data_cli.apply_arguments(ap_root_subparsers.add_parser('data', help='training data management'));
 
     # Trainer command/arguments
     training_cli.apply_arguments(ap_root_subparsers.add_parser('train', help='model training'));
@@ -35,7 +36,7 @@ def main() -> None:
     # Hand off to subcommands
     match args.subcommand:
         case 'data':
-            print('error: not implemented', file=sys.stderr);
+            data_cli.main(args);
         case 'train':
             training_cli.main(args);
         case _:
