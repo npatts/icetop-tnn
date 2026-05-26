@@ -33,22 +33,22 @@ echo "Python executable is $PYTHON_EXECUTABLE";
 echo "Pip executable is $PIP_EXECUTABLE";
 
 # set up venv
-python3 -m venv "$ICETOP_TNN_VENV_ROOT"
+"$PYTHON_EXECUTABLE" -m venv "$ICETOP_TNN_VENV_ROOT"
 source "$ICETOP_TNN_VENV_ROOT/bin/activate"
 
 # install graphnet build tools
-pip install setuptools==82.0 \
-            packaging==26.0 \
-            || exit 1;
+"$PIP_EXECUTABLE" install setuptools==82.0 \
+                          packaging==26.0 \
+                          || exit 1;
 
 # install pytorch
-pip install --index-url https://download.pytorch.org/whl/cu128 \
-            torch==2.7.0 \
-            torchvision \
-            torchaudio \
-            || exit 1;
+"$PIP_EXECUTABLE" install --index-url https://download.pytorch.org/whl/cu128 \
+                  torch==2.7.0 \
+                  torchvision \
+                  torchaudio \
+                  || exit 1;
 
 # build graphnet
 pushd external/graphnet
-    pip install -e '.[develop,torch-27]' -f https://data.pyg.org/whl/torch-2.7.0+cu128.html || exit 1;
+    "$PIP_EXECUTABLE" install -e '.[develop,torch-27]' -f https://data.pyg.org/whl/torch-2.7.0+cu128.html || exit 1;
 popd
