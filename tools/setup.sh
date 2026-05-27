@@ -19,27 +19,32 @@ if [ "$ICETOP_TNN_VENV_ROOT" = "/" -o "$ICETOP_TNN_VENV_ROOT" = "" -o "$ICETOP_T
 fi;
 
 # check that python and pip work
-if ! "$PYTHON_EXECUTABLE" --version; then
+if PYTHON_VERSION="$(! "$PYTHON_EXECUTABLE" --version)"; then
     echo "ERROR: Unable to execute PYTHON_EXECUTABLE" >> /dev/stderr
     exit 1
 fi;
-if ! "$PIP_EXECUTABLE" --version; then
+if PIP_VERSION="$(! "$PIP_EXECUTABLE" --version)"; then
     echo "ERROR: Unable to execute PIP_EXECUTABLE" >> /dev/stderr
     exit 1
 fi;
 
-echo "Virtual environment root is $ICETOP_TNN_VENV_ROOT";
-echo "Python executable is $PYTHON_EXECUTABLE";
-echo "Pip executable is $PIP_EXECUTABLE";
+# echo executables
+echo "Initializing IceTop-TNN up with the following environment:"
+echo "  Virtual environment root is $ICETOP_TNN_VENV_ROOT";
+echo "  Python executable is $PYTHON_EXECUTABLE ($PYTHON_VERSION)";
+echo "  Pip executable is $PIP_EXECUTABLE ($PIP_VERSION)";
 
 # set up venv
 "$PYTHON_EXECUTABLE" -m venv "$ICETOP_TNN_VENV_ROOT"
 source "$ICETOP_TNN_VENV_ROOT/bin/activate"
 
-# install graphnet build tools
+# install python build tools
 "$PIP_EXECUTABLE" install setuptools==82.0 \
                           packaging==26.0 \
                           || exit 1;
+
+# build h5py from source. if the h5py library does not match the hdf5 version the library will fail to initialize properly.
+"$PIP_EXECUTABLE" install --no-binary h5py h5py==3.16.0 || exit 1;
 
 # install pytorch
 "$PIP_EXECUTABLE" install --index-url https://download.pytorch.org/whl/cu128 \
