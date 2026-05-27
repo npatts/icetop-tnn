@@ -3,6 +3,7 @@
 """
 
 from argparse import ArgumentParser, Namespace;
+from os import pardir
 import sys;
 from tempfile import TemporaryDirectory;
 from pathlib import Path;
@@ -58,11 +59,20 @@ def sub_create(args: Namespace) -> None:
             exit(1);
 
     if args.data_create_output.exists():
+        if not args.data_create_output.is_dir():
+            print(f'error: output "{args.data_create_output}" is not a directory');
+            exit(1);
+    elif not args.data_create_output.parent.exists():
+        print(f'error: "{args.data_create_output.parent}" is not a directory');
+    else:
+        args.data_create_output.mkdir(parents=False);
+
+    if sum(1 for _ in args.data_create_output.iterdir()) != 0:
         if not util.prompt_yn(f'The output directory "{args.data_create_output}" already exists. Continue?'):
             exit(1);
 
     DataConverter(
-        file_reader = I3Reader(gcd_rescue=args.data_create_gcd),
+        file_reader = I3Reader(gcd_rescue=str(args.data_create_gcd)),
         save_method = ParquetWriter(),
         outdir = args.data_create_output,
         extractors = [ I3GenericExtractor() ]
