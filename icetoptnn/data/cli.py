@@ -74,7 +74,7 @@ def sub_create(args: Namespace) -> None:
     DataConverter(
         file_reader = I3Reader(gcd_rescue=str(args.data_create_gcd)),
         save_method = ParquetWriter(),
-        outdir = args.data_create_output,
+        outdir = str(args.data_create_output),
         extractors = [ I3GenericExtractor() ]
-    )(args.data_create_inputs);
+    )(str(args.data_create_inputs));
 
