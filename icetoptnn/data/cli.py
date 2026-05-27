@@ -54,6 +54,7 @@ def main(args: Namespace) -> None:
             exit(1);
 
 def sub_create(args: Namespace) -> None:
+    # Validate arguments
     for file in args.data_create_inputs:
         if not file.exists():
             print(f'error: input "{file}" does not exist', file=sys.stderr);
@@ -75,13 +76,68 @@ def sub_create(args: Namespace) -> None:
         if not util.prompt_yn(f'The output directory "{args.data_create_output}" already exists. Continue?'):
             exit(1);
 
+    # Path path, str extension, str layout
+    events: list[tuple[Path, str, str]] = []
+
+    # str layout -> Path path, str extension
+    gcds: dict[str, tuple[Path, str]] = {}
+
+    # TODO(npatts): Don't hardcode this
+    # Find event files
+    for root in args.data_create_inputs:
+        for dir, _, files in root.walk():
+            for file in files:
+                name: str;
+                ext: str;
+                if file.endswith('.i3.gz'):
+                    ext = 'gz';
+                    name = file[:-6];
+                elif file.endswith('.i3.bz2'):
+                    ext = 'bz2';
+                    name = file[:-7];
+                elif file.endswith('.root') or file.endswith('.h5'): # ignore whatever these are
+                    continue
+                else:
+                    raise Exception(f'Unexpected file extension on {file}');
+
+                # split into components by the delimiter _
+                comps: list[str] = name.split('_');
+
+                match comps:
+                    case ['Level3', layout, 'GCD']:
+                        gcds[layout] = (dir/file, ext);
+                    case ['Level3', 'IC86.2012', 'SIBYLL2.1', composition, layout, event]:
+                        events.append((dir/file, ext, layout));
+                    case ['Level3', 'IC86.2012', 'SIBYLL2.1', composition, 'thinned', layout, event]:
+                        events.append((dir/file, ext, layout));
+                    case ['Level3', 'IC86.2012', 'SIBYLL2.1', composition, layout, _, _]: # what are these? the second to last is probably energy? what's the last thing?
+                        events.append((dir/file, ext, layout));
+                    case ['Level3', 'IC86.2012', 'SIBYLL2.1', composition, 'thinned', layout, _, _ ]: # what are these? should we even include these?
+                        events.append((dir/file, ext, layout));
+                    case _:
+                        raise Exception(f'Unrecognized file name pattern {file}');
+
+    # "Validate" events
+    for path, _, layout in events:
+        if not layout in gcds:
+            raise Exception(f'No GCD for layout {layout} (event path: {path})');
+
+    # Feedback
+    print(f'Got {len(events)} events');
+
     with TemporaryDirectory() as merged:
+        # Create layout directories
+        for layout, (path, ext) in gcds.items():
+            (Path(merged)/layout).mkdir();
+            (Path(merged)/layout/f'layout.gcd.i3.{ext}').symlink_to(path);
+
+        # Populate layout directories
         seq = 0;
-        for dir in args.data_create_inputs:
-            (Path(merged)/str(seq)).symlink_to(Path(dir))
+        for path, ext, layout in events:
+            (Path(merged)/layout/f'{seq}.i3.{ext}').symlink_to(path);
             seq += 1;
 
-        system(f'ls -la {merged}')
+        system(f'ls -la {merged}');
 
         DataConverter(
             file_reader = I3Reader(gcd_rescue=str(args.data_create_gcd)),
