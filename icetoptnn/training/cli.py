@@ -11,7 +11,7 @@ from graphnet.models.transformer import ISeeCube;
 from graphnet.models.task.reconstruction import AzimuthReconstruction, ZenithReconstruction
 from graphnet.training.loss_functions import MSELoss;
 
-def apply_arguments(subcommand: argparse.ArgumentParser) -> None:
+def apply_arguments(subcommand) -> None:
     """Add arguments to the train subcommand"""
     
     return

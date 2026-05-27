@@ -3,7 +3,7 @@
 """
 
 from argparse import ArgumentParser, Namespace;
-from os import pardir
+from os import pardir, system
 import sys;
 from tempfile import TemporaryDirectory;
 from pathlib import Path;
@@ -18,12 +18,16 @@ from .. import environment, util;
 ap_root_parser:   ArgumentParser;
 ap_create_parser: ArgumentParser;
 
-def apply_arguments(subcommand: ArgumentParser) -> None:
+def apply_arguments(subparsers) -> None:
     """Apply arguments to the data subcommand"""
     global ap_root_parser, ap_create_parser;
     
-    ap_root_parser = subcommand;
-    ap_root_subparsers = subcommand.add_subparsers(title='subcommands', dest='data_subcommand')
+    ap_root_parser = subparsers.add_parser('data', help='generate graphnet datasets',
+                                           description=
+                                           'Generates GraphNeT datasets. All input directories are treated as '
+                                           'a single input dataset. The generated datasets will be outputted to '
+                                           'the output directory.');
+    ap_root_subparsers = ap_root_parser.add_subparsers(title='subcommands', dest='data_subcommand')
 
     ap_create_parser = ap_root_subparsers.add_parser('create',
                                                      help='create datasets from raw icecube events')
@@ -71,10 +75,18 @@ def sub_create(args: Namespace) -> None:
         if not util.prompt_yn(f'The output directory "{args.data_create_output}" already exists. Continue?'):
             exit(1);
 
-    DataConverter(
-        file_reader = I3Reader(gcd_rescue=str(args.data_create_gcd)),
-        save_method = ParquetWriter(),
-        outdir = str(args.data_create_output),
-        extractors = [ I3GenericExtractor() ]
-    )([str(input) for input in args.data_create_inputs]);
+    with TemporaryDirectory() as merged:
+        seq = 0;
+        for dir in args.data_create_inputs:
+            (Path(merged)/str(seq)).symlink_to(Path(dir))
+            seq++;
+
+        system(f'ls -la {merged}')
+
+        DataConverter(
+            file_reader = I3Reader(gcd_rescue=str(args.data_create_gcd)),
+            save_method = ParquetWriter(),
+            outdir = str(args.data_create_output),
+            extractors = [ I3GenericExtractor() ]
+        )([merged]);
 

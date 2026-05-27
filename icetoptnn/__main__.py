@@ -20,12 +20,11 @@ def main() -> None:
     ap_root_parser.add_argument('--env', type=str, help='override environment.txt path', dest='environment_path',
                                 default=util.get_project_root()/'environment.txt')
 
-
     # Datagen command/arguments
-    data_cli.apply_arguments(ap_root_subparsers.add_parser('data', help='training data management'));
+    data_cli.apply_arguments(ap_root_subparsers);
 
     # Trainer command/arguments
-    training_cli.apply_arguments(ap_root_subparsers.add_parser('train', help='model training'));
+    training_cli.apply_arguments(ap_root_subparsers);
 
     # Parse arguments
     args = ap_root_parser.parse_args();
