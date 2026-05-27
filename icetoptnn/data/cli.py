@@ -79,7 +79,7 @@ def sub_create(args: Namespace) -> None:
         seq = 0;
         for dir in args.data_create_inputs:
             (Path(merged)/str(seq)).symlink_to(Path(dir))
-            seq++;
+            seq += 1;
 
         system(f'ls -la {merged}')
 
