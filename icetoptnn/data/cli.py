@@ -76,5 +76,5 @@ def sub_create(args: Namespace) -> None:
         save_method = ParquetWriter(),
         outdir = str(args.data_create_output),
         extractors = [ I3GenericExtractor() ]
-    )(str(args.data_create_inputs));
+    )([str(input) for input in args.data_create_inputs]);
 
