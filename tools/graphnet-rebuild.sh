@@ -9,5 +9,7 @@ source ./environment.txt
 
 # rebuild graphnet
 pushd external/graphnet
-    "$PIP_EXECUTABLE" install --ignore-installed --no-binary graphnet -e '.[develop,torch-27]' -f https://data.pyg.org/whl/torch-2.7.0+cu128.html || exit 1;
+    "$PIP_EXECUTABLE" install --ignore-installed --no-binary graphnet -e '.[develop,torch-27]' -f https://data.pyg.org/whl/torch-2.7.0+cu128.html \
+                                                 --no-binary h5py h5py==3.16.0 \
+                                                 || exit 1;
 popd
