@@ -109,11 +109,11 @@ def sub_create(args: Namespace) -> None:
                     case ['Level3', 'IC86.2012', 'SIBYLL2.1', composition, layout, event]:
                         events.append((dir/file, ext, layout));
                     case ['Level3', 'IC86.2012', 'SIBYLL2.1', composition, 'thinned', layout, event]:
-                        events.append((dir/file, ext, layout));
+                        pass; # skip thinned
                     case ['Level3', 'IC86.2012', 'SIBYLL2.1', composition, layout, _, _]: # what are these? the second to last is probably energy? what's the last thing?
                         events.append((dir/file, ext, layout));
-                    case ['Level3', 'IC86.2012', 'SIBYLL2.1', composition, 'thinned', layout, _, _ ]: # what are these? should we even include these?
-                        events.append((dir/file, ext, layout));
+                    case ['Level3', 'IC86.2012', 'SIBYLL2.1', composition, 'thinned', layout, _, _ ]:
+                        pass; # skip thinned
                     case _:
                         raise Exception(f'Unrecognized file name pattern {file}');
 
