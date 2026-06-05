@@ -214,7 +214,7 @@ def bind(path: Path, target: Path) -> None:
             with open(target, 'rb') as src:
                 out.write(src.read());
     else:
-        path.symlink_to(target);
+        path.symlink_to(target.absolute());
 
 def get_ext(name: str, allowed: list[str]) -> tuple[str, str]:
     """Split a file into it's name and extension using a list of allowed extensions"""
