@@ -155,7 +155,7 @@ def sub_create(args: Namespace) -> None:
     # Feedback
     # print(f'Got {len(events)} events');
 
-    with TemporaryDirectory('.icetop-tnn-datagen') as merged:
+    with TemporaryDirectory(prefix='icetop-tnn-datagen.') as merged:
         # Create layout directories
         for layout, (path, ext) in gcds.items():
             (Path(merged)/layout).mkdir();
