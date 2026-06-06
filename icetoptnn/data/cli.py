@@ -16,9 +16,8 @@ from graphnet.data.dataconverter import DataConverter;
 from graphnet.data.extractors.icecube import I3TruthExtractor
 from graphnet.data.readers import I3Reader;
 from graphnet.data.writers import ParquetWriter;
-from graphnet.data.extractors.icecube.i3genericextractor import I3FeatureExtractor;
+from graphnet.data.extractors.icecube.i3truthextractor import I3TruthExtractor;
 
-from .diff_inflate import GCDDecompressor;
 from .. import environment, util;
 
 ap_root_parser:   ArgumentParser;
@@ -208,7 +207,7 @@ def sub_create(args: Namespace) -> None:
                 file_reader = I3Reader(gcd_rescue='/@/invalid/gcd-not-linked-you-should-never-see-this-something-is-very-very-wrong'),
                 save_method = ParquetWriter(),
                 outdir = str(args.data_create_output),
-                extractors = [ I3FeatureExtractor() ]
+                extractors = [ I3TruthExtractor(ice_top = True) ] # TODO: ice_top should be a datagen argument
             )([merged]);
         except Exception as e:
             print(e);
