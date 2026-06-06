@@ -9,12 +9,16 @@ from pathlib import Path;
 import sys;
 import gzip;
 
+from icecube import dataclasses, icetray, dataio;
+import icecube.frame_object_diff.segments as frame_object_diff;
+
 from graphnet.data.dataconverter import DataConverter;
 from graphnet.data.extractors.icecube import I3TruthExtractor
 from graphnet.data.readers import I3Reader;
 from graphnet.data.writers import ParquetWriter;
-from graphnet.data.extractors.icecube.i3genericextractor import I3GenericExtractor;
+from graphnet.data.extractors.icecube.i3genericextractor import I3FeatureExtractor;
 
+from .diff_inflate import GCDDecompressor;
 from .. import environment, util;
 
 ap_root_parser:   ArgumentParser;
@@ -36,7 +40,23 @@ class SubDataset:
 
     # Events
     # (Path path, str extension, str layout)
-    events: list[tuple[Path, str, str]] = [];
+    i3files: list[tuple[Path, str, str]] = [];
+
+class TrackedGCD:
+    """
+        A single* IceTop GCD file
+
+        *single does not include base files in frame diffs
+    """
+
+    # File path
+    path: Path;
+
+    # File extension
+    extension: str;
+
+    # Number of i3files referencing this GCD
+    refcount: int = 0;
 
 def apply_arguments(subparsers) -> None:
     """Apply arguments to the data subcommand"""
@@ -105,7 +125,7 @@ def sub_create(args: Namespace) -> None:
     subdatasets: dict[str, SubDataset] = {}
 
     # str layout -> Path path, str extension
-    gcds: dict[str, tuple[Path, str]] = {}
+    gcds: dict[str, TrackedGCD] = {}
 
     # TODO(npatts): Don't hardcode this
     # Find event files
@@ -118,7 +138,7 @@ def sub_create(args: Namespace) -> None:
 
                 match name.split('_'):
                     case ['Level3', layout, 'GCD']:
-                        gcds[layout] = (dir/file, ext);
+                        take_gcd(gcds, layout, dir/file, ext);
                     case ['Level3', 'IC86.2012', 'SIBYLL2.1', composition, layout, event]:
                         take_event(subdatasets, dir.parent.name, dir/file, ext, layout, composition, float(dir.name));
                     case ['Level3', 'IC86.2012', 'SIBYLL2.1', composition, 'thinned', layout, event]:
@@ -141,30 +161,40 @@ def sub_create(args: Namespace) -> None:
         print(ds.composition);
         print(ds.energy_min, ds.energy_max);
 
-    # "Validate" events
+    # "Validate" i3file path and check for unneeded gcdfiles
     for sds_name, sds in subdatasets.items():
-        for path, _, layout in sds.events:
+        for path, _, layout in sds.i3files:
+            # link to recovery gcd if we don't have one already
+            # TODO(npatts): this is bad. the recovery gcd will be processed multiple times in the uncompress step if it isn't a complete gcd.
             if not layout in gcds:
                 if args.data_create_recoverygcd is not None:
                     _, ext = get_ext(args.data_create_recoverygcd.name, I3FILE_EXTENSIONS);
 
-                    gcds[layout] = (args.data_create_recoverygcd, ext);
+                    take_gcd(gcds, layout, args.data_create_recoverygcd, ext)
                 else:
                     raise Exception(f'No GCD for layout {layout} (event path: {path})');
+
+            # increment refcount
+            gcds[layout].refcount += 1;
+
+    # Remove GCDs that we don't need
+    for name, gcd in list(gcds.items()):
+        if gcd.refcount == 0:
+            del gcds[name];
 
     # Feedback
     # print(f'Got {len(events)} events');
 
     with TemporaryDirectory(prefix='icetop-tnn-datagen.') as merged:
         # Create layout directories
-        for layout, (path, ext) in gcds.items():
+        for layout, trackedgcd in gcds.items():
             (Path(merged)/layout).mkdir();
-            bind(Path(merged)/layout/f'layout.gcd{ext}', path);
+            decompress_gcd(trackedgcd.path, Path(merged)/layout/f'layout.gcd{trackedgcd.extension}');
 
         # Populate layout directories
         seq = 0;
         for sds_name, sds in subdatasets.items():
-            for path, ext, layout in sds.events:
+            for path, ext, layout in sds.i3files:
                 bind(Path(merged)/layout/f'{seq}{ext}', path)
                 seq += 1;
 
@@ -178,7 +208,7 @@ def sub_create(args: Namespace) -> None:
                 file_reader = I3Reader(gcd_rescue='/@/invalid/gcd-not-linked-you-should-never-see-this-something-is-very-very-wrong'),
                 save_method = ParquetWriter(),
                 outdir = str(args.data_create_output),
-                extractors = [ I3GenericExtractor() ]
+                extractors = [ I3FeatureExtractor() ]
             )([merged]);
         except Exception as e:
             print(e);
@@ -188,6 +218,8 @@ def sub_create(args: Namespace) -> None:
 def take_event(subdatasets: dict[str, SubDataset], name: str,
                path: Path, extension: str, layout: str,
                composition: str, energy: float) -> None:
+    """Track an event file"""
+
     # Add new sub-dataset if one does not already exist.
     if not name in subdatasets:
         newds = SubDataset()
@@ -197,14 +229,26 @@ def take_event(subdatasets: dict[str, SubDataset], name: str,
         subdatasets[name] = newds;
 
         print(f'Registered sub-dataset {name} {{ .c = {composition}, .emin = .emax = {energy} }}');
-    pass
 
     # Add the event to the sub-dataset
     if subdatasets[name].composition != composition: raise Exception(f'{subdatasets[name].composition} != {composition}');
 
-    subdatasets[name].events.append((path, extension, layout));
+    subdatasets[name].i3files.append((path, extension, layout));
     subdatasets[name].energy_min = min(subdatasets[name].energy_min, energy);
     subdatasets[name].energy_max = max(subdatasets[name].energy_max, energy);
+
+def take_gcd(trackedgcds: dict[str, TrackedGCD], name: str,
+             path: Path, extension: str) -> None:
+    """Track a GCD file"""
+
+    if name in trackedgcds:
+        raise Exception(f'Duplicate GCD file: "{trackedgcds[name].path}" "{path}"');
+
+    newgcd = TrackedGCD();
+    newgcd.path = path;
+    newgcd.extension = extension;
+    trackedgcds[name] = newgcd;
+
 
 def bind(path: Path, target: Path) -> None:
     """Add a file to the datagen directory""";
@@ -224,3 +268,19 @@ def get_ext(name: str, allowed: list[str]) -> tuple[str, str]:
             return (name[:-len(ext)], ext);
 
     raise Exception(f'Unexpected file extension on {name} (want {allowed})');
+
+def decompress_gcd(path: Path, output: Path) -> None:
+    """Decompress a GCD file compressed with frame_object_diff"""
+
+    # Decompress diffs with IceTray
+    tray = icetray.I3Tray();
+    tray.Add('I3Reader', Filename=path.as_posix());
+    tray.Add('Dump');
+    tray.Add(frame_object_diff.uncompress) # TODO(npatts): in the future, i would like this to use something custom that can reroute file paths from one prefix to another (eg /data to ~/Documents/data)
+                                           #               until then, if using compressed gcds, it will not be possible to run datagen outside of icecube servers
+    # tray.Add(GCDDecompressor);
+    tray.Add('Dump');
+    tray.Add('I3Writer', Filename=output.as_posix());
+    tray.Execute();
+
+    return
