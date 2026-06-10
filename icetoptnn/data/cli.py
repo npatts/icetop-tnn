@@ -167,6 +167,7 @@ def sub_create(args: Namespace) -> None:
         print(name);
         print(ds.composition);
         print(ds.energy_min, ds.energy_max);
+        print(len(ds.i3files))
 
     # "Validate" i3file path and check for unneeded gcdfiles
     for sds_name, sds in subdatasets.items():
