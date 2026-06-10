@@ -53,6 +53,9 @@ source "$ICETOP_TNN_VENV_ROOT/bin/activate"
                   torchaudio \
                   || exit 1;
 
+# install pycondor
+"$PIP_EXECUTABLE" install pycondor==0.6.1 || exit 1;
+
 # build graphnet
 pushd external/graphnet
     "$PIP_EXECUTABLE" install -e '.[develop,torch-27]' -f https://data.pyg.org/whl/torch-2.7.0+cu128.html || exit 1;

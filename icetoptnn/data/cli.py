@@ -13,10 +13,9 @@ from icecube import dataclasses, icetray, dataio;
 import icecube.frame_object_diff.segments as frame_object_diff;
 
 from graphnet.data.dataconverter import DataConverter;
-from graphnet.data.extractors.icecube import I3TruthExtractor
+from graphnet.data.extractors.icecube import I3FeatureExtractorIceCube86, I3TruthExtractor;
 from graphnet.data.readers import I3Reader;
-from graphnet.data.writers import ParquetWriter;
-from graphnet.data.extractors.icecube.i3truthextractor import I3TruthExtractor;
+from graphnet.data.writers import SQLiteWriter;
 
 from .. import environment, util;
 
@@ -57,6 +56,12 @@ class TrackedGCD:
     # Number of i3files referencing this GCD
     refcount: int = 0;
 
+# All sub-datasets created by the current create op
+subdatasets: dict[str, SubDataset] = {};
+
+# All GCDs located by the current create op
+gcds: dict[str, TrackedGCD] = {};
+
 def apply_arguments(subparsers) -> None:
     """Apply arguments to the data subcommand"""
     global ap_root_parser, ap_create_parser;
@@ -77,6 +82,13 @@ def apply_arguments(subparsers) -> None:
     ap_create_parser.add_argument('-G', type=Path, dest='data_create_recoverygcd',
                                   help='Use the specified GCD as a placeholder if a event has no associated GCD');
 
+    ap_create_parser.add_argument('-C', dest='data_create_htcondor',
+                                  action='store_true',
+                                  help='Set the script to use HTCondor.');
+    ap_create_parser.add_argument('-W', type=int, dest='data_create_workers',
+                                  help='Number of workers to use.',
+                                  default=1);
+
     return
 
 def main(args: Namespace) -> None:
@@ -85,7 +97,7 @@ def main(args: Namespace) -> None:
 
     match args.data_subcommand:
         case 'create':
-            sub_create(args);
+            sub_create(args); # TODO: All of this is probably going to have to get split into a different file ATP
         case _:
             print('error: no subcommand specified', file=sys.stderr);
             ap_root_parser.print_help();
@@ -118,13 +130,8 @@ def sub_create(args: Namespace) -> None:
         exit(1);
 
     if sum(1 for _ in args.data_create_output.iterdir()) != 0:
-        if not util.prompt_yn(f'The output directory "{args.data_create_output}" already exists. Continue?'):
+        if not util.prompt_yn(f'The output directory "{args.data_create_output}" already exists. This WILL cause problems. Continue?'):
             exit(1);
-
-    subdatasets: dict[str, SubDataset] = {}
-
-    # str layout -> Path path, str extension
-    gcds: dict[str, TrackedGCD] = {}
 
     # TODO(npatts): Don't hardcode this
     # Find event files
@@ -137,14 +144,14 @@ def sub_create(args: Namespace) -> None:
 
                 match name.split('_'):
                     case ['Level3', layout, 'GCD']:
-                        take_gcd(gcds, layout, dir/file, ext);
+                        take_gcd(layout, dir/file, ext);
                     case ['Level3', 'IC86.2012', 'SIBYLL2.1', composition, layout, event]:
-                        take_event(subdatasets, dir.parent.name, dir/file, ext, layout, composition, float(dir.name));
+                        take_event(dir.parent.name, dir/file, ext, layout, composition, float(dir.name));
                     case ['Level3', 'IC86.2012', 'SIBYLL2.1', composition, 'thinned', layout, event]:
                         pass;
                     case ['Level3', 'IC86.2012', 'SIBYLL2.1', composition, layout, energyraw, energylevelevent]:
                         if energyraw[0] != 'E': raise Exception(f'Unrecognized file name pattern {file}');
-                        take_event(subdatasets, dir.name, dir/file, ext, layout, composition, float(energyraw[1:]));
+                        take_event(dir.name, dir/file, ext, layout, composition, float(energyraw[1:]));
                     case ['Level3', 'IC86.2012', 'SIBYLL2.1', composition, 'thinned', layout, _, _ ]:
                         pass; # skip thinned
                     case _:
@@ -155,6 +162,7 @@ def sub_create(args: Namespace) -> None:
         # Remove low/high energy sets, just in case we missed one.
         if sds.energy_min < 5.0 or sds.energy_max > 8.0: del subdatasets[name];
 
+    # List sub-datasets for debugging purposes
     for name, ds in subdatasets.items():
         print(name);
         print(ds.composition);
@@ -169,7 +177,7 @@ def sub_create(args: Namespace) -> None:
                 if args.data_create_recoverygcd is not None:
                     _, ext = get_ext(args.data_create_recoverygcd.name, I3FILE_EXTENSIONS);
 
-                    take_gcd(gcds, layout, args.data_create_recoverygcd, ext)
+                    take_gcd(layout, args.data_create_recoverygcd, ext)
                 else:
                     raise Exception(f'No GCD for layout {layout} (event path: {path})');
 
@@ -181,40 +189,13 @@ def sub_create(args: Namespace) -> None:
         if gcd.refcount == 0:
             del gcds[name];
 
-    # Feedback
-    # print(f'Got {len(events)} events');
+    # Get going
+    if args.data_create_htcondor:
+        execute_remote(args);
+    else:
+        execute_local(args);
 
-    with TemporaryDirectory(prefix='icetop-tnn-datagen.') as merged:
-        # Create layout directories
-        for layout, trackedgcd in gcds.items():
-            (Path(merged)/layout).mkdir();
-            decompress_gcd(trackedgcd.path, Path(merged)/layout/f'layout.gcd{trackedgcd.extension}');
-
-        # Populate layout directories
-        seq = 0;
-        for sds_name, sds in subdatasets.items():
-            for path, ext, layout in sds.i3files:
-                bind(Path(merged)/layout/f'{seq}{ext}', path)
-                seq += 1;
-
-        system(f'ls -la {merged}');
-
-        input()
-
-        try:
-            # Hand off to GraphNeT
-            DataConverter(
-                file_reader = I3Reader(gcd_rescue='/@/invalid/gcd-not-linked-you-should-never-see-this-something-is-very-very-wrong'),
-                save_method = ParquetWriter(),
-                outdir = str(args.data_create_output),
-                extractors = [ I3TruthExtractor(ice_top = True) ] # TODO: ice_top should be a datagen argument
-            )([merged]);
-        except Exception as e:
-            print(e);
-            input();
-            raise e;
-
-def take_event(subdatasets: dict[str, SubDataset], name: str,
+def take_event(name: str,
                path: Path, extension: str, layout: str,
                composition: str, energy: float) -> None:
     """Track an event file"""
@@ -236,17 +217,16 @@ def take_event(subdatasets: dict[str, SubDataset], name: str,
     subdatasets[name].energy_min = min(subdatasets[name].energy_min, energy);
     subdatasets[name].energy_max = max(subdatasets[name].energy_max, energy);
 
-def take_gcd(trackedgcds: dict[str, TrackedGCD], name: str,
-             path: Path, extension: str) -> None:
+def take_gcd(name: str, path: Path, extension: str) -> None:
     """Track a GCD file"""
 
-    if name in trackedgcds:
-        raise Exception(f'Duplicate GCD file: "{trackedgcds[name].path}" "{path}"');
+    if name in gcds:
+        raise Exception(f'Duplicate GCD file: "{gcds[name].path}" "{path}"');
 
     newgcd = TrackedGCD();
     newgcd.path = path;
     newgcd.extension = extension;
-    trackedgcds[name] = newgcd;
+    gcds[name] = newgcd;
 
 
 def bind(path: Path, target: Path) -> None:
@@ -277,9 +257,63 @@ def decompress_gcd(path: Path, output: Path) -> None:
     tray.Add('Dump');
     tray.Add(frame_object_diff.uncompress) # TODO(npatts): in the future, i would like this to use something custom that can reroute file paths from one prefix to another (eg /data to ~/Documents/data)
                                            #               until then, if using compressed gcds, it will not be possible to run datagen outside of icecube servers
-    # tray.Add(GCDDecompressor);
     tray.Add('Dump');
     tray.Add('I3Writer', Filename=output.as_posix());
     tray.Execute();
 
     return
+
+def execute_remote(args: Namespace):
+    """Run the data generator on a Condor cluster"""
+
+    
+
+    pass;
+
+def execute_local(args: Namespace):
+    """Run the data generator locally."""
+
+    # Run the data generator
+    with TemporaryDirectory(prefix='icetop-tnn-datagen.') as merged:
+        # Create layout directories
+        for layout, trackedgcd in gcds.items():
+            (Path(merged)/layout).mkdir();
+            decompress_gcd(trackedgcd.path, Path(merged)/layout/f'layout.gcd{trackedgcd.extension}');
+
+        # Populate layout directories
+        seq = 0;
+        for sds_name, sds in subdatasets.items():
+            for path, ext, layout in sds.i3files:
+                bind(Path(merged)/layout/f'{seq}--{path.stem}{ext}', path)
+                seq += 1;
+
+        try:
+            # Hand off to GraphNeT
+            converter = DataConverter(
+                file_reader = I3Reader(gcd_rescue='/@/invalid/gcd-not-linked-you-should-never-see-this-something-is-very-very-wrong'),
+                save_method = SQLiteWriter(merged_database_name='events'), # events.db :roaches_beetles:
+                outdir = str(args.data_create_output),
+                extractors = [ 
+                    I3TruthExtractor(ice_top = True), # TODO: ice_top should be a datagen argument
+                    I3FeatureExtractorIceCube86("OfflineIceTopHLCTankPulses") # Should we be using SLC instead?
+                ],
+                num_workers=args.data_create_workers
+            );
+
+            # Let it rip
+            converter([merged])
+
+            # Merge generated databases
+            # GraphNeT claims there's a database_name argument, but there actually isn't. It uses
+            # the merged_database_name argument on the converter constructor instead. (outputs to events.sqlite)
+            converter.merge_files(
+                files = [ str(f) for f in args.data_create_output.iterdir() ],
+                output_dir = str(args.data_create_output),
+                remove_originals = True
+            );
+
+            input()
+        except Exception as e:
+            print(e);
+            input();
+            raise e;

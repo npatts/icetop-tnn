@@ -20,6 +20,20 @@ def main() -> None:
     ap_root_parser.add_argument('--env', type=str, help='override environment.txt path', dest='environment_path',
                                 default=util.get_project_root()/'environment.txt')
 
+    # Condor configuration arguments
+    ap_root_parser.add_argument('--condor-stdout', type=pathlib.Path, dest='condor_stdoutdir',
+                                help='HTCondor submmission stdout directory',
+                                default=util.get_project_root()/'private/condor/stdout/');
+    ap_root_parser.add_argument('--condor-stderr', type=pathlib.Path, dest='condor_stderrdir',
+                                help='HTCondor submmission stderr directory',
+                                default=util.get_project_root()/'private/condor/stderr/');
+    ap_root_parser.add_argument('--condor-logdir', type=pathlib.Path, dest='condor_logdir',
+                                help='HTCondor submmission log directory',
+                                default=util.get_project_root()/'private/condor/log/');
+    ap_root_parser.add_argument('--condor-submitdir', type=pathlib.Path, dest='condor_submitdir',
+                                help='HTCondor submmission file directory',
+                                default=util.get_project_root()/'private/condor/submit/');
+
     # Datagen command/arguments
     data_cli.apply_arguments(ap_root_subparsers);
 
