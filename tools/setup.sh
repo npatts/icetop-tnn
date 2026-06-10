@@ -23,40 +23,35 @@ if PYTHON_VERSION="$(! "$PYTHON_EXECUTABLE" --version)"; then
     echo "ERROR: Unable to execute PYTHON_EXECUTABLE" >> /dev/stderr
     exit 1
 fi;
-if PIP_VERSION="$(! "$PIP_EXECUTABLE" --version)"; then
-    echo "ERROR: Unable to execute PIP_EXECUTABLE" >> /dev/stderr
-    exit 1
-fi;
 
 # echo executables
 echo "Initializing IceTop-TNN up with the following environment:"
 echo "  Virtual environment root is $ICETOP_TNN_VENV_ROOT";
 echo "  Python executable is $PYTHON_EXECUTABLE ($PYTHON_VERSION)";
-echo "  Pip executable is $PIP_EXECUTABLE ($PIP_VERSION)";
 
 # set up venv
 "$PYTHON_EXECUTABLE" -m venv "$ICETOP_TNN_VENV_ROOT"
 source "$ICETOP_TNN_VENV_ROOT/bin/activate"
 
 # install python build tools
-"$PIP_EXECUTABLE" install setuptools==82.0 \
+"$PYTHON_EXECUTABLE" -m pip install setuptools==82.0 \
                           packaging==26.0 \
                           || exit 1;
 
 # build h5py from source. if the h5py library does not match the hdf5 version the library will fail to initialize properly.
-"$PIP_EXECUTABLE" install --no-binary h5py h5py==3.16.0 || exit 1;
+"$PYTHON_EXECUTABLE" -m pip install --no-binary h5py h5py==3.16.0 || exit 1;
 
 # install pytorch
-"$PIP_EXECUTABLE" install --index-url https://download.pytorch.org/whl/cu128 \
+"$PYTHON_EXECUTABLE" -m pip install --index-url https://download.pytorch.org/whl/cu128 \
                   torch==2.7.0 \
                   torchvision \
                   torchaudio \
                   || exit 1;
 
 # install pycondor
-"$PIP_EXECUTABLE" install pycondor==0.6.1 || exit 1;
+"$PYTHON_EXECUTABLE" -m pip install pycondor==0.6.1 || exit 1;
 
 # build graphnet
 pushd external/graphnet
-    "$PIP_EXECUTABLE" install -e '.[develop,torch-27]' -f https://data.pyg.org/whl/torch-2.7.0+cu128.html || exit 1;
+    "$PYTHON_EXECUTABLE" -m pip install -e '.[develop,torch-27]' -f https://data.pyg.org/whl/torch-2.7.0+cu128.html || exit 1;
 popd
