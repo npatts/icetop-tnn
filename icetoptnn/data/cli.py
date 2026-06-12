@@ -3,9 +3,10 @@
 """
 
 from argparse import ArgumentParser, Namespace;
-from os import pardir, system
+from os import get_exec_path, pardir, system
 from tempfile import TemporaryDirectory;
 from pathlib import Path;
+import functools;
 import sys;
 import gzip;
 
@@ -17,28 +18,20 @@ from graphnet.data.extractors.icecube import I3FeatureExtractorIceCube86, I3Trut
 from graphnet.data.readers import I3Reader;
 from graphnet.data.writers import SQLiteWriter;
 
-from .. import environment, util;
+from ..util import I3FILE_EXTENSIONS, prompt_yn, validate_ext;
+from .      import input as tnninput
 
 ap_root_parser:   ArgumentParser;
 ap_create_parser: ArgumentParser;
 
-KNOWN_EXTENSIONS = [ '.i3', '.i3.gz', '.i3.bz2', '.root', '.h5' ];
-SKIPPED_EXTENSIONS = [ '.root', '.h5' ];
-I3FILE_EXTENSIONS = [ '.i3', '.i3.gz', '.i3.bz2' ];
+class EventFiles:
+    """IceTop event files"""
 
-class SubDataset:
-    """IceTop sub-dataset"""
+    layout: str;
+    """The GCD layout to use"""
 
-    # Composition
-    composition: str;
-
-    # Energy levels
-    energy_min: float;
-    energy_max: float;
-
-    # Events
-    # (Path path, str extension, str layout)
-    i3files: list[tuple[Path, str, str]] = [];
+    paths: list[Path];
+    """Paths to the files to use"""
 
 class TrackedGCD:
     """
@@ -47,17 +40,14 @@ class TrackedGCD:
         *single does not include base files in frame diffs
     """
 
-    # File path
     path: Path;
+    """Path to the GCD file"""
 
-    # File extension
-    extension: str;
-
-    # Number of i3files referencing this GCD
     refcount: int = 0;
+    """Number if event file groups referencing this GCD"""
 
-# All sub-datasets created by the current create op
-subdatasets: dict[str, SubDataset] = {};
+# All events
+events: list[EventFiles] = [];
 
 # All GCDs located by the current create op
 gcds: dict[str, TrackedGCD] = {};
@@ -109,86 +99,64 @@ def sub_create(args: Namespace) -> None:
     # Validate arguments
     for file in args.data_create_inputs:
         if not file.exists():
-            print(f'error: input "{file}" does not exist', file=sys.stderr);
-            exit(1);
-        if not file.is_dir():
-            print(f'error: input "{file}" is not a directory', file=sys.stderr);
-            exit(1);
+            raise FileNotFoundError(f'error: input "{file}" does not exist');
 
     if args.data_create_output.exists():
         if not args.data_create_output.is_dir():
-            print(f'error: output "{args.data_create_output}" is not a directory');
-            exit(1);
+            raise NotADirectoryError(f'output "{args.data_create_output}" is not a directory');
     elif not args.data_create_output.parent.exists():
-        print(f'error: "{args.data_create_output.parent}" is not a directory');
-        exit(1);
+        raise FileNotFoundError(f'"{args.data_create_output.parent}" is not a directory');
     else:
         args.data_create_output.mkdir(parents=False);
 
     if args.data_create_recoverygcd is not None and not args.data_create_recoverygcd.exists():
-        print(f'error: placeholder gcd "{args.data_create_recoverygcd}" does not exist');
-        exit(1);
+        raise FileNotFoundError(f'placeholder gcd "{args.data_create_recoverygcd}" does not exist');
 
     if sum(1 for _ in args.data_create_output.iterdir()) != 0:
-        if not util.prompt_yn(f'The output directory "{args.data_create_output}" already exists. This WILL cause problems. Continue?'):
+        if not prompt_yn(f'The output directory "{args.data_create_output}" already exists. This WILL cause problems. Continue?'):
             exit(1);
 
     # TODO(npatts): Don't hardcode this
     # Find event files
     for root in args.data_create_inputs:
-        for dir, _, files in root.walk():
-            for file in files:
-                (name, ext) = get_ext(file, KNOWN_EXTENSIONS);
-                if ext in SKIPPED_EXTENSIONS:
-                    continue;
+        # Input file system
+        if root.suffix != '.yml':
+            raise NotADirectoryError(f"Input \"{root}\" is not an input definition");
 
-                match name.split('_'):
-                    case ['Level3', layout, 'GCD']:
-                        take_gcd(layout, dir/file, ext);
-                    case ['Level3', 'IC86.2012', 'SIBYLL2.1', composition, layout, event]:
-                        take_event(dir.parent.name, dir/file, ext, layout, composition, float(dir.name));
-                    case ['Level3', 'IC86.2012', 'SIBYLL2.1', composition, 'thinned', layout, event]:
-                        pass;
-                    case ['Level3', 'IC86.2012', 'SIBYLL2.1', composition, layout, energyraw, energylevelevent]:
-                        if energyraw[0] != 'E': raise Exception(f'Unrecognized file name pattern {file}');
-                        take_event(dir.name, dir/file, ext, layout, composition, float(energyraw[1:]));
-                    case ['Level3', 'IC86.2012', 'SIBYLL2.1', composition, 'thinned', layout, _, _ ]:
-                        pass; # skip thinned
-                    case _:
-                        raise Exception(f'Unrecognized file name pattern {file}');
+        definition = tnninput.read_input_definition(root);
+        for file_set in definition.get_files():
+            match file_set.resource:
+                case tnninput.InputResourceType.EVENT:
+                    take_events(file_set.layout, file_set.files);
 
-    # Remove any sub-datasets we don't want.
-    for name, sds in list(subdatasets.items()):
-        # Remove low/high energy sets, just in case we missed one.
-        if sds.energy_min < 5.0 or sds.energy_max > 8.0: del subdatasets[name];
+                case tnninput.InputResourceType.GCD:
+                    if len(file_set.files) != 1:
+                        raise Exception(f"Length of GCD file set must be 1, got {len(file_set.files)}");
 
-    # List sub-datasets for debugging purposes
-    for name, ds in subdatasets.items():
-        print(name);
-        print(ds.composition);
-        print(ds.energy_min, ds.energy_max);
-        print(len(ds.i3files))
+                    take_gcd(file_set.layout, file_set.files[0]);
 
     # "Validate" i3file path and check for unneeded gcdfiles
-    for sds_name, sds in subdatasets.items():
-        for path, _, layout in sds.i3files:
-            # link to recovery gcd if we don't have one already
-            # TODO(npatts): this is bad. the recovery gcd will be processed multiple times in the uncompress step if it isn't a complete gcd.
-            if not layout in gcds:
-                if args.data_create_recoverygcd is not None:
-                    _, ext = get_ext(args.data_create_recoverygcd.name, I3FILE_EXTENSIONS);
+    for group in events:
+        # link to recovery gcd if we don't have one already
+        # TODO(npatts): this is bad. the recovery gcd will be processed multiple times in the uncompress step if it isn't a complete gcd.
+        if not group.layout in gcds:
+            if args.data_create_recoverygcd is not None:
+                # TODO: npatts ????-??-??: HANDLE ALL EXTENSIONS IN THE FILE
+                #       npatts 2026-06-12: What did she mean by this?
+                _, ext = validate_ext(args.data_create_recoverygcd.name, I3FILE_EXTENSIONS);
+                take_gcd(group.layout, args.data_create_recoverygcd)
+            else:
+                raise Exception(f'No GCD for layout {group.layout}');
 
-                    take_gcd(layout, args.data_create_recoverygcd, ext)
-                else:
-                    raise Exception(f'No GCD for layout {layout} (event path: {path})');
-
-            # increment refcount
-            gcds[layout].refcount += 1;
+        # increment layout refcount
+        gcds[group.layout].refcount += 1;
 
     # Remove GCDs that we don't need
     for name, gcd in list(gcds.items()):
         if gcd.refcount == 0:
             del gcds[name];
+
+    # TODO: Deduplicate file paths?
 
     # Get going
     if args.data_create_htcondor:
@@ -196,39 +164,26 @@ def sub_create(args: Namespace) -> None:
     else:
         execute_local(args);
 
-def take_event(name: str,
-               path: Path, extension: str, layout: str,
-               composition: str, energy: float) -> None:
-    """Track an event file"""
+def take_events(layout: str, files: list[Path]) -> None:
+    """Track an event group"""
 
-    # Add new sub-dataset if one does not already exist.
-    if not name in subdatasets:
-        newds = SubDataset()
-        newds.composition = composition;
-        newds.energy_min = energy;
-        newds.energy_max = energy;
-        subdatasets[name] = newds;
+    group = EventFiles();
+    group.layout = layout;
+    group.paths = files;
+    events.append(group);
 
-        print(f'Registered sub-dataset {name} {{ .c = {composition}, .emin = .emax = {energy} }}');
-
-    # Add the event to the sub-dataset
-    if subdatasets[name].composition != composition: raise Exception(f'{subdatasets[name].composition} != {composition}');
-
-    subdatasets[name].i3files.append((path, extension, layout));
-    subdatasets[name].energy_min = min(subdatasets[name].energy_min, energy);
-    subdatasets[name].energy_max = max(subdatasets[name].energy_max, energy);
-
-def take_gcd(name: str, path: Path, extension: str) -> None:
+def take_gcd(name: str, file: Path) -> None:
     """Track a GCD file"""
 
+    if not file.exists() or file.is_dir():
+        raise FileNotFoundError(f"GCD file \"{file}\" is not a file");
+
     if name in gcds:
-        raise Exception(f'Duplicate GCD file: "{gcds[name].path}" "{path}"');
-
+        raise Exception(f'Duplicate GCD file: "{gcds[name].path}" "{file}"');
+    
     newgcd = TrackedGCD();
-    newgcd.path = path;
-    newgcd.extension = extension;
+    newgcd.path = file;
     gcds[name] = newgcd;
-
 
 def bind(path: Path, target: Path) -> None:
     """Add a file to the datagen directory""";
@@ -239,15 +194,6 @@ def bind(path: Path, target: Path) -> None:
                 out.write(src.read());
     else:
         path.symlink_to(target.absolute());
-
-def get_ext(name: str, allowed: list[str]) -> tuple[str, str]:
-    """Split a file into it's name and extension using a list of allowed extensions"""
-
-    for ext in sorted(allowed, key=lambda a: -len(a)):
-        if (name.endswith(ext)):
-            return (name[:-len(ext)], ext);
-
-    raise Exception(f'Unexpected file extension on {name} (want {allowed})');
 
 def decompress_gcd(path: Path, output: Path) -> None:
     """Decompress a GCD file compressed with frame_object_diff"""
@@ -278,14 +224,16 @@ def execute_local(args: Namespace):
     with TemporaryDirectory(prefix='icetop-tnn-datagen.') as merged:
         # Create layout directories
         for layout, trackedgcd in gcds.items():
+            _, ext = validate_ext(trackedgcd.path.name, I3FILE_EXTENSIONS);
+
             (Path(merged)/layout).mkdir();
-            decompress_gcd(trackedgcd.path, Path(merged)/layout/f'layout.gcd{trackedgcd.extension}');
+            decompress_gcd(trackedgcd.path, Path(merged)/layout/f'layout.gcd{ext}');
 
         # Populate layout directories
         seq = 0;
-        for sds_name, sds in subdatasets.items():
-            for path, ext, layout in sds.i3files:
-                bind(Path(merged)/layout/f'{seq}--{path.stem}{ext}', path)
+        for group in events:
+            for path in group.paths:
+                bind(Path(merged)/group.layout/f'{seq}--{path.name}', path);
                 seq += 1;
 
         try:
@@ -318,3 +266,4 @@ def execute_local(args: Namespace):
             print(e);
             input();
             raise e;
+
