@@ -321,13 +321,11 @@ def execute_remote(args: Namespace):
         yaml.dump(out_group, open(job_dir / 'job.yml', 'w'));
 
         jwork = Job('icetoptnn-work', executable=str(venv_root/'bin/python'),
-                    arguments=[
-                        '-m', 'icetoptnn',
-                        'data', 'create',
-                        '-W', '1', # TODO: add workers and scale resources
-                        str(job_dir / 'output/'),
-                        str(job_dir / 'job.yml')
-                    ],
+                    arguments=
+                        '-m icetoptnn data create' +
+                        ' -W 1' + # TODO: add workers and scale resources
+                        ' ' + str(job_dir / 'output/') +
+                        ' ' + str(job_dir / 'job.yml'),
                     initialdir=str(get_project_root()),
                     error=str(args.condor_stderrdir),
                     output=str(args.condor_stdoutdir),
