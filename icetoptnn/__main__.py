@@ -21,6 +21,8 @@ def main() -> None:
                                 default=util.get_project_root()/'environment.txt')
 
     # Condor configuration arguments
+    ap_root_parser.add_argument('--condor-scratch', type=pathlib.Path, dest='condor_scratchdir',
+                                help='Directory to store files for running DAGs. Should be a shared FS.');
     ap_root_parser.add_argument('--condor-stdout', type=pathlib.Path, dest='condor_stdoutdir',
                                 help='HTCondor submmission stdout directory',
                                 default=util.get_project_root()/'private/condor/stdout/');
@@ -45,6 +47,18 @@ def main() -> None:
 
     # Load environment.txt
     environment.reload(pathlib.Path(args.environment_path).resolve());
+
+    # Apply envtxt based defaults
+    if args.condor_scratchdir is None:
+        scratch_dir = environment.get('CONDOR_SCRATCH_DIR');
+        if scratch_dir is None:
+            raise Exception('CONDOR_SCRATCH_DIR is not set and a scratch dir was not provided with --condor-scratch');
+
+        args.condor_scratchdir = pathlib.Path(scratch_dir);
+
+    # Validate arguments
+    if not args.condor_scratchdir.exists():
+        raise FileNotFoundError(f'Scratch directory "{args.condor_scratchdir}" does not exist');
 
     # Hand off to subcommands
     match args.subcommand:

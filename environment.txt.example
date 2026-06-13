@@ -1,2 +1,3 @@
 ICETOP_TNN_VENV_ROOT=./.venv/
 PYTHON_EXECUTABLE=python3.12
+CONDOR_SCRATCH_DIR=/data/user/npatterson/icetop-tnn/scratch/

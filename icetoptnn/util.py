@@ -4,10 +4,13 @@
 
 import sys;
 import pathlib;
+import math;
 
 # KNOWN_EXTENSIONS = [ '.i3', '.i3.gz', '.i3.bz2', '.root', '.h5' ];
 # SKIPPED_EXTENSIONS = [ '.root', '.h5' ];
 I3FILE_EXTENSIONS = [ '.i3', '.i3.gz', '.i3.bz2' ];
+
+STORAGE_SUFFIXES = [ 'K', 'M', 'G', 'T' ];
 
 def get_ext(name: str, allowed: list[str]) -> tuple[str, str, bool]:
     """Split a file into it's name and extension using a list of allowed extensions"""
@@ -45,3 +48,36 @@ def prompt_yn(prompt: str) -> bool:
             case 'y': return True;
             case 'n': return False;
             case  _:  continue;
+
+def parse_storage(string: str) -> int:
+    """Parse a storage string into an integer representing the number of bytes it represents"""
+
+    amount = 0;
+    index = 0;
+    magnitude = 0;
+    base = 1000;
+
+    # find end of number part
+    for c in string:
+        if c.isdigit() or c == '.':
+            index += 1;
+        else:
+            break;
+
+    # parse amount
+    amount = float(string[:index]);
+
+    # apply suffixes
+    for c in string[index:]:
+        if c == 'B':
+            continue;
+        elif c == 'i':
+            base = 1024;
+        elif c in STORAGE_SUFFIXES:
+            magnitude = STORAGE_SUFFIXES.index(c) + 1;
+        else:
+            raise(Exception(f"Unknown storage suffix \"{c}\""));
+    
+    # math
+    return math.ceil(amount * pow(base, magnitude));
+

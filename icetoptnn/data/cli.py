@@ -9,16 +9,20 @@ from pathlib import Path;
 import functools;
 import sys;
 import gzip;
+import uuid;
 
 from icecube import dataclasses, icetray, dataio;
 import icecube.frame_object_diff.segments as frame_object_diff;
+from pycondor import Dagman, Job;
+import yaml;
 
 from graphnet.data.dataconverter import DataConverter;
 from graphnet.data.extractors.icecube import I3FeatureExtractorIceCube86, I3TruthExtractor;
 from graphnet.data.readers import I3Reader;
 from graphnet.data.writers import SQLiteWriter;
 
-from ..util import I3FILE_EXTENSIONS, prompt_yn, validate_ext;
+from ..util import I3FILE_EXTENSIONS, prompt_yn, validate_ext, parse_storage, get_project_root;
+from ..     import environment;
 from .      import input as tnninput
 
 ap_root_parser:   ArgumentParser;
@@ -72,12 +76,24 @@ def apply_arguments(subparsers) -> None:
     ap_create_parser.add_argument('-G', type=Path, dest='data_create_recoverygcd',
                                   help='Use the specified GCD as a placeholder if a event has no associated GCD');
 
-    ap_create_parser.add_argument('-C', dest='data_create_htcondor',
-                                  action='store_true',
-                                  help='Set the script to use HTCondor.');
+    # GraphNeT settings
     ap_create_parser.add_argument('-W', type=int, dest='data_create_workers',
                                   help='Number of workers to use.',
                                   default=1);
+
+    # Condor settings
+    ap_create_parser.add_argument('-C', dest='data_create_htcondor',
+                                  action='store_true',
+                                  help='Set the script to use HTCondor.');
+    ap_create_parser.add_argument('--job-size', type=parse_storage, dest='data_create_jobsize',
+                                  help='Maximum amount of data that can be included in a single condor job',
+                                  default='1G');
+    ap_create_parser.add_argument('--job-count', type=int, dest='data_create_jobcount',
+                                  help='Maximum number of files that can be included in a single condor job',
+                                  default=2000);
+    ap_create_parser.add_argument('--job-limit', type=int, dest='data_create_joblimit',
+                                  help='Maximum number of condor jobs',
+                                  default=500);
 
     return
 
@@ -213,7 +229,125 @@ def decompress_gcd(path: Path, output: Path) -> None:
 def execute_remote(args: Namespace):
     """Run the data generator on a Condor cluster"""
 
+    jobs:  list[list[tuple[str, Path]]] = [];
+    cjob:  list[tuple[str, Path]] = [];
+    cgcds: list[TrackedGCD] = [];
+    csize: int = 0; # TODO: may go slightly over because of gcds
+
+    # make scratch directory
+    workflow_dir: Path = args.condor_scratchdir / str(uuid.uuid1());
+    workflow_dir.mkdir();
+
+    # break events into jobs
+    for group in events:
+        for path in group.paths:
+            size = path.stat().st_size;
+
+            # if size is too large set up a new list of sizes
+            if csize + size > args.data_create_jobsize:
+                jobs.append(cjob);
+                cjob = [];
+                cgcds = [];
+                csize = 0;
+
+            # add size to csize (wow)
+            csize += size;
+
+            # handle new gcd if needed
+            if not gcds[group.layout] in cgcds:
+                csize += gcds[group.layout].path.stat().st_size;
+                cgcds.append(gcds[group.layout]);
+
+            # add to job
+            cjob.append((group.layout, path));
+
+    if len(cjob) > 0:
+        jobs.append(cjob);
+
+    # confirm
+    print(f"WILL SUBMIT WITH {len(jobs)} JOBS");
+    if not prompt_yn("That's a lot of jobs you greedy animal." if len(jobs) > 200 else "Continue?"):
+        exit(0);
+
+    # find python
+    venv_root = environment.get("ICETOP_TNN_VENV_ROOT");
+    if venv_root is None:
+        raise Exception("No ICETOP_TNN_VENV_ROOT set in environment file");
+    venv_root = Path(venv_root);
     
+    if not venv_root.is_absolute():
+        venv_root = Path("./").resolve() / venv_root;
+        venv_root = venv_root.resolve();
+
+    if not venv_root.exists():
+        raise FileNotFoundError(f"No venv at {venv_root}");
+    
+    # set up job
+    dag = Dagman('icetoptnn-datagen', submit=args.condor_submitdir);
+
+    jmerge = Job('icetoptnn-datagen-merge', executable='/bin/false',
+                 error=str(args.condor_stderrdir),
+                 output=str(args.condor_stdoutdir),
+                 log=str(args.condor_logdir),
+                 submit=str(args.condor_submitdir),
+                 dag=dag);
+
+    # this could be one submit file...
+    jobid = 0;
+    for job in jobs:
+        job_dir = workflow_dir / str(jobid);
+        job_dir.mkdir()
+
+        out_gcds = [];
+        out_group = tnninput.GroupDefinition();
+        out_group.contents = []; # placebo but pyyaml will break if this isn't here. 
+                                 # your guess is as good as mine
+        for layout, file in job:
+            out_file = tnninput.FileDefinition();
+            out_file.path = str(file); # type: ignore
+            out_file.layout = layout;
+            out_group.contents.append(out_file);
+
+            if not layout in out_gcds:
+                out_gcds.append(layout);
+
+        for gcd in out_gcds:
+            out_file = tnninput.FileDefinition();
+            out_file.path = str(gcds[gcd].path); # type: ignore
+            out_file.layout = gcd;
+            out_file.resource = str(tnninput.InputResourceType.GCD); # type: ignore
+            out_group.contents.append(out_file);
+
+        yaml.dump(out_group, open(job_dir / 'job.yml', 'w'));
+
+        jwork = Job('icetoptnn-work', executable=str(venv_root/'bin/python'),
+                    arguments=[
+                        '-m', 'icetoptnn',
+                        'data', 'create',
+                        '-W', '1', # TODO: add workers and scale resources
+                        str(job_dir / 'output/'),
+                        str(job_dir / 'job.yml')
+                    ],
+                    initialdir=str(get_project_root()),
+                    error=str(args.condor_stderrdir),
+                    output=str(args.condor_stdoutdir),
+                    log=str(args.condor_logdir),
+                    submit=str(args.condor_submitdir),
+                    dag=dag);
+
+        jwork.add_child(jmerge);
+
+        jobid += 1;
+
+    jcleanup = Job('icetoptnn-datagen-cleanup', executable='/bin/false',
+                 error=str(args.condor_stderrdir),
+                 output=str(args.condor_stdoutdir),
+                 log=str(args.condor_logdir),
+                 submit=str(args.condor_submitdir),
+                 dag=dag);
+    jcleanup.add_parent(jmerge);
+
+    dag.build();
 
     pass;
 

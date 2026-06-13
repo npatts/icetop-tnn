@@ -61,7 +61,7 @@ class GroupDefinition(InputDefinition, yaml.YAMLObject):
 
     yaml_tag = '!tnndata/group';
 
-    contents: list[InputDefinition];
+    contents: list[InputDefinition] = [];
     """Input definitions contained within this group"""
 
     def get_files(self) -> list[InputFiles]:
