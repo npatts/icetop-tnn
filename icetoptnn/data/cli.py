@@ -255,7 +255,7 @@ def execute_remote(args: Namespace):
             size = path.stat().st_size;
 
             # if size is too large set up a new list of sizes
-            if csize + size > args.data_create_jobsize:
+            if csize + size > args.data_create_jobsize or len(cjob) >= args.data_create_jobcount:
                 jobs.append(cjob);
                 cjob = [];
                 cgcds = [];
