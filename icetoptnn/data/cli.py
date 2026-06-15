@@ -285,12 +285,19 @@ def execute_remote(args: Namespace):
     # set up job
     dag = Dagman('icetoptnn-datagen', submit=args.condor_submitdir);
 
-    jmerge = Job('icetoptnn-datagen-merge', executable='/bin/false',
-                 error=str(args.condor_stderrdir),
-                 output=str(args.condor_stdoutdir),
-                 log=str(args.condor_logdir),
-                 submit=str(args.condor_submitdir),
-                 dag=dag);
+    jmerge = Job('icetoptnn-datagen-merge', executable=str(venv_root/'bin/python'),
+                arguments=
+                   '-m icetoptnn data merge' +
+                   ' ' + str(args.data_create_output) +
+                   ' ' + functools.reduce(lambda a, b: a + b, 
+                                          [ str(workflow_dir / str(job) / 'output/events.db') + ' ' 
+                                            for job in range(len(jobs)) ]),
+                initialdir=str(get_project_root()),
+                error=str(args.condor_stderrdir),
+                output=str(args.condor_stdoutdir),
+                log=str(args.condor_logdir),
+                submit=str(args.condor_submitdir),
+                dag=dag);
 
     # this could be one submit file...
     jobid = 0;
@@ -320,7 +327,7 @@ def execute_remote(args: Namespace):
 
         yaml.dump(out_group, open(job_dir / 'job.yml', 'w'));
 
-        jwork = Job('icetoptnn-work', executable=str(venv_root/'bin/python'),
+        jwork = Job('icetoptnn-datagen-work', executable=str(venv_root/'bin/python'),
                     arguments=
                         '-m icetoptnn data create' +
                         ' -W 1' + # TODO: add workers and scale resources
@@ -337,12 +344,15 @@ def execute_remote(args: Namespace):
 
         jobid += 1;
 
-    jcleanup = Job('icetoptnn-datagen-cleanup', executable='/bin/false',
-                 error=str(args.condor_stderrdir),
-                 output=str(args.condor_stdoutdir),
-                 log=str(args.condor_logdir),
-                 submit=str(args.condor_submitdir),
-                 dag=dag);
+    # scary!
+    jcleanup = Job('icetoptnn-datagen-cleanup', executable=str('/bin/rm'),
+                arguments="-r " + str(workflow_dir.absolute()),
+                initialdir=str(get_project_root()),
+                error=str(args.condor_stderrdir),
+                output=str(args.condor_stdoutdir),
+                log=str(args.condor_logdir),
+                submit=str(args.condor_submitdir),
+                dag=dag);
     jcleanup.add_parent(jmerge);
 
     dag.build();
