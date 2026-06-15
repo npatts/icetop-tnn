@@ -389,36 +389,29 @@ def execute_local(args: Namespace):
                 bind(Path(merged)/group.layout/f'{seq}--{path.name}', path);
                 seq += 1;
 
-        try:
-            # Hand off to GraphNeT
-            converter = DataConverter(
-                file_reader = I3Reader(gcd_rescue='/@/invalid/gcd-not-linked-you-should-never-see-this-something-is-very-very-wrong'),
-                save_method = SQLiteWriter(merged_database_name='events'), # events.db :roaches_beetles:
-                outdir = str(args.data_create_output),
-                extractors = [ 
-                    I3TruthExtractor(ice_top = True), # TODO: ice_top should be a datagen argument
-                    I3FeatureExtractorIceCube86("OfflineIceTopHLCTankPulses") # Should we be using SLC instead?
-                ],
-                num_workers=args.data_create_workers
-            );
+        # Hand off to GraphNeT
+        converter = DataConverter(
+            file_reader = I3Reader(gcd_rescue='/@/invalid/gcd-not-linked-you-should-never-see-this-something-is-very-very-wrong'),
+            save_method = SQLiteWriter(merged_database_name='events'), # events.db :roaches_beetles:
+            outdir = str(args.data_create_output),
+            extractors = [ 
+                I3TruthExtractor(ice_top = True), # TODO: ice_top should be a datagen argument
+                I3FeatureExtractorIceCube86("OfflineIceTopHLCTankPulses") # Should we be using SLC instead?
+            ],
+            num_workers=args.data_create_workers
+        );
 
-            # Let it rip
-            converter([merged])
+        # Let it rip
+        converter([merged])
 
-            # Merge generated databases
-            # GraphNeT claims there's a database_name argument, but there actually isn't. It uses
-            # the merged_database_name argument on the converter constructor instead. (outputs to events.sqlite)
-            converter.merge_files(
-                files = [ str(f) for f in args.data_create_output.iterdir() ],
-                output_dir = str(args.data_create_output),
-                remove_originals = True
-            );
-
-            input()
-        except Exception as e:
-            print(e);
-            input();
-            raise e;
+        # Merge generated databases
+        # GraphNeT claims there's a database_name argument, but there actually isn't. It uses
+        # the merged_database_name argument on the converter constructor instead. (outputs to events.sqlite)
+        converter.merge_files(
+            files = [ str(f) for f in args.data_create_output.iterdir() ],
+            output_dir = str(args.data_create_output),
+            remove_originals = True
+        );
 
 def sub_merge(args: Namespace) -> None:
     """Merge multiple datasets into one"""
