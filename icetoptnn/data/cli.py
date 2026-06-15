@@ -9,7 +9,8 @@ from pathlib import Path;
 import functools;
 import sys;
 import gzip;
-import uuid;
+import uuid
+from warnings import resetwarnings;
 
 from graphnet.data.extractors import SQLiteExtractor
 from icecube import dataclasses, icetray, dataio;
@@ -468,7 +469,8 @@ def sub_merge(args: Namespace) -> None:
     converter.merge_files(
         files = [ str(path/'merged/events.db') for path in args.data_merge_inputs ],
         output_dir = args.data_merge_output,
-        remove_originals = False
+        remove_originals = False,
+        reset_integer_primary_key = True
     );
 
     return
