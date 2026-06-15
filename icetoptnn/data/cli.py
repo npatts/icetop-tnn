@@ -26,6 +26,9 @@ from ..util import I3FILE_EXTENSIONS, prompt_yn, validate_ext, parse_storage, ge
 from ..     import environment;
 from .      import input as tnninput
 
+# This isn't everything but hopefully it should make it less likely to fail
+EXECUTION_REQUIREMENT_AD = 'Has_avx2'
+
 ap_root_parser:   ArgumentParser;
 ap_create_parser: ArgumentParser;
 
@@ -313,6 +316,7 @@ def execute_remote(args: Namespace):
                 output=str(args.condor_stdoutdir),
                 log=str(args.condor_logdir),
                 submit=str(args.condor_submitdir),
+                requirements=EXECUTION_REQUIREMENT_AD,
                 dag=dag);
 
     # this could be one submit file...
@@ -354,6 +358,7 @@ def execute_remote(args: Namespace):
                     output=str(args.condor_stdoutdir),
                     log=str(args.condor_logdir),
                     submit=str(args.condor_submitdir),
+                    requirements=EXECUTION_REQUIREMENT_AD,
                     dag=dag);
 
         jwork.add_child(jmerge);
