@@ -362,7 +362,7 @@ def execute_remote(args: Namespace):
                     log=str(args.condor_logdir),
                     submit=str(args.condor_submitdir),
                     requirements=EXECUTION_REQUIREMENT_AD,
-                    request_memory="8",
+                    request_memory="8GB",
                     extra_lines=[
                         f'environment = "PYTHONPATH=\'{os.environ['PYTHONPATH']}:{get_project_root().resolve()}/\'"'
                     ],
