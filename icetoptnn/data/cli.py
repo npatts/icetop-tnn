@@ -364,7 +364,7 @@ def execute_remote(args: Namespace):
                     requirements=EXECUTION_REQUIREMENT_AD,
                     request_memory="8",
                     extra_lines=[
-                        f'environment = "PYTHONPATH=\'{os.environ['PYTHONPATH']}:{get_project_root().resolve()}/\''
+                        f'environment = "PYTHONPATH=\'{os.environ['PYTHONPATH']}:{get_project_root().resolve()}/\'"'
                     ],
                     dag=dag);
 
