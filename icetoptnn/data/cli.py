@@ -97,6 +97,11 @@ def apply_arguments(subparsers) -> None:
                                   help='Maximum number of condor jobs',
                                   default=500);
 
+    # Debug settings
+    ap_create_parser.add_argument('--dry-run', dest='data_create_dryrun',
+                                  action='store_true',
+                                  help='Don\'t run a data generation job');
+
 
     # DATA MERGE
     ap_merge_parser = ap_root_subparsers.add_parser('merge',
@@ -338,7 +343,7 @@ def execute_remote(args: Namespace):
 
         yaml.dump(out_group, open(job_dir / 'job.yml', 'w'));
 
-        jwork = Job('icetoptnn-datagen-work', executable=str(venv_root/'bin/python'),
+        jwork = Job(f'icetoptnn-datagen-work-{jobid}', executable=str(venv_root/'bin/python'),
                     arguments=
                         '-m icetoptnn data create' +
                         ' -W 1' + # TODO: add workers and scale resources
@@ -366,12 +371,19 @@ def execute_remote(args: Namespace):
                 dag=dag);
     jcleanup.add_parent(jmerge);
 
-    dag.build();
+    if args.data_create_dryrun:
+        dag.build();
+    else:
+        dag.build_submit();
 
     pass;
 
 def execute_local(args: Namespace):
     """Run the data generator locally."""
+
+    # do nothing if dry run
+    if args.data_create_dryrun:
+        return;
 
     # Run the data generator
     with TemporaryDirectory(prefix='icetop-tnn-datagen.') as merged:
