@@ -318,7 +318,7 @@ def execute_remote(args: Namespace):
                 submit=str(args.condor_submitdir),
                 requirements=EXECUTION_REQUIREMENT_AD,
                 extra_lines=[
-                    f'environment = "PYTHONPATH=\'{os.environ['PYTHONPATH']}:{get_project_root().resolve()}/\''
+                    f'environment = "PYTHONPATH=\'{os.environ['PYTHONPATH']}:l{get_project_root().resolve()}/\'"'
                 ],
                 dag=dag);
 
