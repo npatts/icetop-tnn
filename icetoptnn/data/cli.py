@@ -310,7 +310,7 @@ def execute_remote(args: Namespace):
                    ' -m icetoptnn data merge' +
                    ' ' + str(args.data_create_output) +
                    ' ' + functools.reduce(lambda a, b: a + b, 
-                                          [ str(workflow_dir / str(job) / 'output/events.db') + ' ' 
+                                          [ str(workflow_dir / str(job) / 'output/') + ' ' 
                                             for job in range(len(jobs)) ]),
                 initialdir=str(get_project_root()),
                 error=str(args.condor_stderrdir),
