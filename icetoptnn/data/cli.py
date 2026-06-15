@@ -304,7 +304,7 @@ def execute_remote(args: Namespace):
     # set up job
     dag = Dagman('icetoptnn-datagen', submit=args.condor_submitdir);
 
-    jmerge = Job('icetoptnn-datagen-merge', executable=get_project_root()/'scripts/cvmwrap.sh',
+    jmerge = Job('icetoptnn-datagen-merge', executable=get_project_root()/'tools/cvmwrap.sh',
                 arguments=
                    str(venv_root/'bin/python') +
                    ' -m icetoptnn data merge' +
@@ -348,7 +348,7 @@ def execute_remote(args: Namespace):
 
         yaml.dump(out_group, open(job_dir / 'job.yml', 'w'));
 
-        jwork = Job(f'icetoptnn-datagen-work-{jobid}', executable=get_project_root()/'scripts/cvmwrap.sh',
+        jwork = Job(f'icetoptnn-datagen-work-{jobid}', executable=get_project_root()/'tools/cvmwrap.sh',
                     arguments=
                         str(venv_root/'bin/python') +
                         ' -m icetoptnn data create' +
