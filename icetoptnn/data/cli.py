@@ -361,6 +361,7 @@ def execute_remote(args: Namespace):
                     log=str(args.condor_logdir),
                     submit=str(args.condor_submitdir),
                     requirements=EXECUTION_REQUIREMENT_AD,
+                    request_memory="8",
                     dag=dag);
 
         jwork.add_child(jmerge);
