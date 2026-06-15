@@ -3,14 +3,13 @@
 """
 
 from argparse import ArgumentParser, Namespace;
-from os import get_exec_path, pardir, system
 from tempfile import TemporaryDirectory;
 from pathlib import Path;
 import functools;
 import sys;
 import gzip;
-import uuid
-from warnings import resetwarnings;
+import uuid;
+import os;
 
 from graphnet.data.extractors import SQLiteExtractor
 from icecube import dataclasses, icetray, dataio;
@@ -313,12 +312,14 @@ def execute_remote(args: Namespace):
                    ' ' + functools.reduce(lambda a, b: a + b, 
                                           [ str(workflow_dir / str(job) / 'output/') + ' ' 
                                             for job in range(len(jobs)) ]),
-                initialdir=str(get_project_root()),
                 error=str(args.condor_stderrdir),
                 output=str(args.condor_stdoutdir),
                 log=str(args.condor_logdir),
                 submit=str(args.condor_submitdir),
                 requirements=EXECUTION_REQUIREMENT_AD,
+                extra_lines=[
+                    f'environment = "PYTHONPATH=\'{os.environ['PYTHONPATH']}:{get_project_root().resolve()}/\''
+                ],
                 dag=dag);
 
     # this could be one submit file...
@@ -356,13 +357,15 @@ def execute_remote(args: Namespace):
                         ' -W 1' + # TODO: add workers and scale resources
                         ' ' + str(job_dir / 'output/') +
                         ' ' + str(job_dir / 'job.yml'),
-                    initialdir=str(get_project_root()),
                     error=str(args.condor_stderrdir),
                     output=str(args.condor_stdoutdir),
                     log=str(args.condor_logdir),
                     submit=str(args.condor_submitdir),
                     requirements=EXECUTION_REQUIREMENT_AD,
                     request_memory="8",
+                    extra_lines=[
+                        f'environment = "PYTHONPATH=\'{os.environ['PYTHONPATH']}:{get_project_root().resolve()}/\''
+                    ],
                     dag=dag);
 
         jwork.add_child(jmerge);
@@ -372,7 +375,6 @@ def execute_remote(args: Namespace):
     # scary!
     jcleanup = Job('icetoptnn-datagen-cleanup', executable=str('/bin/rm'),
                 arguments="-r " + str(workflow_dir.absolute()),
-                initialdir=str(get_project_root()),
                 error=str(args.condor_stderrdir),
                 output=str(args.condor_stdoutdir),
                 log=str(args.condor_logdir),
