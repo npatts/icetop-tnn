@@ -304,9 +304,10 @@ def execute_remote(args: Namespace):
     # set up job
     dag = Dagman('icetoptnn-datagen', submit=args.condor_submitdir);
 
-    jmerge = Job('icetoptnn-datagen-merge', executable=str(venv_root/'bin/python'),
+    jmerge = Job('icetoptnn-datagen-merge', executable=get_project_root()/'scripts/cvmwrap.sh',
                 arguments=
-                   '-m icetoptnn data merge' +
+                   str(venv_root/'bin/python') +
+                   ' -m icetoptnn data merge' +
                    ' ' + str(args.data_create_output) +
                    ' ' + functools.reduce(lambda a, b: a + b, 
                                           [ str(workflow_dir / str(job) / 'output/events.db') + ' ' 
@@ -347,9 +348,10 @@ def execute_remote(args: Namespace):
 
         yaml.dump(out_group, open(job_dir / 'job.yml', 'w'));
 
-        jwork = Job(f'icetoptnn-datagen-work-{jobid}', executable=str(venv_root/'bin/python'),
+        jwork = Job(f'icetoptnn-datagen-work-{jobid}', executable=get_project_root()/'scripts/cvmwrap.sh',
                     arguments=
-                        '-m icetoptnn data create' +
+                        str(venv_root/'bin/python') +
+                        ' -m icetoptnn data create' +
                         ' -W 1' + # TODO: add workers and scale resources
                         ' ' + str(job_dir / 'output/') +
                         ' ' + str(job_dir / 'job.yml'),
