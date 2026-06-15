@@ -11,6 +11,7 @@ import sys;
 import gzip;
 import uuid;
 
+from graphnet.data.extractors import SQLiteExtractor
 from icecube import dataclasses, icetray, dataio;
 import icecube.frame_object_diff.segments as frame_object_diff;
 from pycondor import Dagman, Job;
@@ -18,7 +19,7 @@ import yaml;
 
 from graphnet.data.dataconverter import DataConverter;
 from graphnet.data.extractors.icecube import I3FeatureExtractorIceCube86, I3TruthExtractor;
-from graphnet.data.readers import I3Reader;
+from graphnet.data.readers import I3Reader, SQLiteReader;
 from graphnet.data.writers import SQLiteWriter;
 
 from ..util import I3FILE_EXTENSIONS, prompt_yn, validate_ext, parse_storage, get_project_root;
@@ -67,6 +68,7 @@ def apply_arguments(subparsers) -> None:
                                            'the output directory.');
     ap_root_subparsers = ap_root_parser.add_subparsers(title='subcommands', dest='data_subcommand')
 
+    # DATA CREATE
     ap_create_parser = ap_root_subparsers.add_parser('create',
                                                      help='create datasets from raw icecube events')
     ap_create_parser.add_argument(metavar='output', type=Path, help='output directory', dest='data_create_output',
@@ -95,6 +97,13 @@ def apply_arguments(subparsers) -> None:
                                   help='Maximum number of condor jobs',
                                   default=500);
 
+
+    # DATA MERGE
+    ap_merge_parser = ap_root_subparsers.add_parser('merge',
+                                                    help='merge datasets');
+    ap_merge_parser.add_argument(metavar='output', type=Path, help='output directory', dest='data_merge_output');
+    ap_merge_parser.add_argument(metavar='inputs', type=Path, help='input datasets', dest='data_merge_inputs', nargs='+');
+
     return
 
 def main(args: Namespace) -> None:
@@ -104,6 +113,8 @@ def main(args: Namespace) -> None:
     match args.data_subcommand:
         case 'create':
             sub_create(args); # TODO: All of this is probably going to have to get split into a different file ATP
+        case 'merge':
+            sub_merge(args);
         case _:
             print('error: no subcommand specified', file=sys.stderr);
             ap_root_parser.print_help();
@@ -409,3 +420,42 @@ def execute_local(args: Namespace):
             input();
             raise e;
 
+def sub_merge(args: Namespace) -> None:
+    """Merge multiple datasets into one"""
+
+    # Validate arguments
+    for file in args.data_merge_inputs:
+        if not file.is_dir():
+            raise NotADirectoryError(f'error: input "{file}" is not a directory');
+        if not (file/'merged/events.db').exists():
+            raise Exception(f'error: input "{file}" is missing an events database.');
+
+    if args.data_merge_output.exists():
+        if not args.data_merge_output.is_dir():
+            raise NotADirectoryError(f'output "{args.data_merge_output}" is not a directory');
+    elif not args.data_merge_output.parent.exists():
+        raise FileNotFoundError(f'"{args.data_merge_output.parent}" is not a directory');
+    else:
+        args.data_merge_output.mkdir(parents=False);
+
+    if sum(1 for _ in args.data_merge_output.iterdir()) != 0:
+        if not prompt_yn(f'The output directory "{args.data_merge_output}" already exists. This WILL cause problems. Continue?'):
+            exit(1);
+
+    # Merge datasets
+    converter = DataConverter(
+        file_reader = SQLiteReader(),
+        save_method = SQLiteWriter(merged_database_name='events'),
+        outdir      = str(args.data_merge_output),
+        extractors  = []
+    );
+
+    # This will probably explode if there's conflicting event ids
+    # Hopefully that doesn't happen :clueless:
+    converter.merge_files(
+        files = [ str(path/'merged/events.db') for path in args.data_merge_inputs ],
+        output_dir = args.data_merge_output,
+        remove_originals = False
+    );
+
+    return
