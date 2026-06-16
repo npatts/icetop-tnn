@@ -1,4 +1,4 @@
 [submodule "external/graphnet"]
 	path = external/graphnet
-	url = git@github.com:npatts/graphnet.git
+	url = https://github.com/npatts/graphnet.git
 	branch = icetop-v1s
