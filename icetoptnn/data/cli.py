@@ -357,7 +357,7 @@ def execute_remote(args: Namespace):
                     arguments=
                         str(venv_root/'bin/python') +
                         ' -m icetoptnn data create' +
-                        ' -W 1' + # TODO: add workers and scale resources
+                        f' -W {args.data_create_workers}' + # TODO: add workers and scale resources
                         ' ' + str(job_dir / 'output/') +
                         ' ' + str(job_dir / 'job.yml'),
                     error=str(args.condor_stderrdir),
@@ -366,6 +366,7 @@ def execute_remote(args: Namespace):
                     submit=str(args.condor_submitdir),
                     requirements=EXECUTION_REQUIREMENT_AD,
                     request_memory="8GB",
+                    request_cpus=args.data_create_workers,
                     extra_lines=[
                         f'environment = "PYTHONPATH=\'{os.environ['PYTHONPATH']}:{get_project_root().resolve()}/\'"'
                     ],
