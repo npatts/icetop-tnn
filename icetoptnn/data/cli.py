@@ -199,6 +199,9 @@ def sub_create(args: Namespace) -> None:
     else:
         execute_local(args);
 
+    # ringaling we're done
+    print("\a");
+
 def take_events(layout: str, files: list[Path]) -> None:
     """Track an event group"""
 
