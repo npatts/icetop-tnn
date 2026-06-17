@@ -320,8 +320,9 @@ def execute_remote(args: Namespace):
                 log=str(args.condor_logdir),
                 submit=str(args.condor_submitdir),
                 requirements=EXECUTION_REQUIREMENT_AD,
+                request_memory="8GB", # 5458344KB on last check. this uses a ton of memory. it may use even more
                 extra_lines=[
-                    f'environment = "PYTHONPATH=\'{os.environ['PYTHONPATH']}:l{get_project_root().resolve()}/\'"'
+                    f'environment = "PYTHONPATH=\'{os.environ['PYTHONPATH']}:{get_project_root().resolve()}/\'"'
                 ],
                 dag=dag);
 
