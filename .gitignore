@@ -4,6 +4,7 @@
 
 # GraphNeT logs
 /logs
+/lightning_logs
 
 # Python files
 __pycache__/
