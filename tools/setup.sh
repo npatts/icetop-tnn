@@ -48,8 +48,9 @@ source "$ICETOP_TNN_VENV_ROOT/bin/activate"
                   torchaudio \
                   || exit 1;
 
-# install pycondor and pyyaml
-"$PYTHON_EXECUTABLE" -m pip install pycondor==0.6.1 pyyaml==6.0.3 || exit 1;
+# install pycondor and pyyaml and torch-geometric
+# https://github.com/graphnet-team/graphnet/issues/901 (documented nowhere btw :))))))))))))))))))
+"$PYTHON_EXECUTABLE" -m pip install pycondor==0.6.1 pyyaml==6.0.3 'torch-geometric<2.8' || exit 1 \
 
 # build graphnet
 pushd external/graphnet
