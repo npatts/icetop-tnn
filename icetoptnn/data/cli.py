@@ -16,6 +16,7 @@ from icecube import dataclasses, icetray, dataio;
 import icecube.frame_object_diff.segments as frame_object_diff;
 from pycondor import Dagman, Job;
 import yaml;
+import sqlite3;
 
 from graphnet.data.dataconverter import DataConverter;
 from graphnet.data.extractors.icecube import I3FeatureExtractorIceCube86, I3TruthExtractor;
@@ -440,6 +441,19 @@ def execute_local(args: Namespace):
             output_dir = str(args.data_create_output),
             remove_originals = True
         );
+
+        # clean out broken values
+        with sqlite3.connect(str(args.data_create_output) + '/merged/events.db') as db:
+            cursor = db.execute('''
+                DELETE FROM OfflineIceTopHLCTankPulses
+                      WHERE dom_x    IS NULL
+                         OR dom_y    IS NULL
+                         OR dom_z    IS NULL
+                         OR dom_time IS NULL
+                         OR charge   IS NULL
+            ''');
+
+            print(f'Removed {cursor.rowcount} bad pulses');
 
 def sub_merge(args: Namespace) -> None:
     """Merge multiple datasets into one"""
