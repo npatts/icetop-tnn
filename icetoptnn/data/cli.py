@@ -311,7 +311,9 @@ def execute_remote(args: Namespace):
     jmerge = Job('icetoptnn-datagen-merge', executable=get_project_root()/'tools/cvmwrap.sh',
                 arguments=
                    str(venv_root/'bin/python') +
-                   ' -m icetoptnn data merge' +
+                   ' -m icetoptnn' +
+                   ' ' + '--workdir /:tmp:/' +
+                   ' ' + 'data merge' +
                    ' ' + str(args.data_create_output) +
                    ' ' + functools.reduce(lambda a, b: a + b, 
                                           [ str(workflow_dir / str(job) / 'output/') + ' ' 
@@ -358,7 +360,9 @@ def execute_remote(args: Namespace):
         jwork = Job(f'icetoptnn-datagen-work-{jobid}', executable=get_project_root()/'tools/cvmwrap.sh',
                     arguments=
                         str(venv_root/'bin/python') +
-                        ' -m icetoptnn data create' +
+                        ' -m icetoptnn' +
+                        ' ' + 'data create' +
+                        ' ' + '--workdir /:tmp:/' +
                         f' -W {args.data_create_workers}' + # TODO: add workers and scale resources
                         ' ' + str(job_dir / 'output/') +
                         ' ' + str(job_dir / 'job.yml'),
