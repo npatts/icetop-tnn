@@ -1,6 +1,8 @@
 import argparse;
 import sys;
+import os;
 import pathlib;
+import tempfile;
 
 from .training import cli as training_cli;
 from .data import cli as data_cli;
@@ -19,6 +21,11 @@ def main() -> None:
                                 action='count');
     ap_root_parser.add_argument('--env', type=str, help='override environment.txt path', dest='environment_path',
                                 default=util.get_project_root()/'environment.txt')
+
+    # Working directory
+    ap_root_parser.add_argument('--workdir', type=pathlib.Path, dest='workdir',
+                                help='switch to directory before starting. uses temporary directory if set to /:tmp:/', 
+                                default=os.getcwd())
 
     # Condor configuration arguments
     ap_root_parser.add_argument('--condor-scratch', type=pathlib.Path, dest='condor_scratchdir',
@@ -59,6 +66,12 @@ def main() -> None:
     # Validate arguments
     if not args.condor_scratchdir.exists():
         raise FileNotFoundError(f'Scratch directory "{args.condor_scratchdir}" does not exist');
+
+    # Switch to new working directory
+    if args.workdir == pathlib.Path('/:tmp:/'):
+        args.workdir = tempfile.mkdtemp(prefix='icetoptnn-workdir.');
+
+    os.chdir(args.workdir);
 
     # Hand off to subcommands
     match args.subcommand:
