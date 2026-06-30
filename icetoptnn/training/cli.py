@@ -63,7 +63,7 @@ def main(args: argparse.Namespace) -> None:
         nb_nearest_neighbours = 20
     );
 
-    # set up dataset
+    # set up dataset list
     for i in args.train_datasets:
         ds = SQLiteDataset(
             path = str(i.absolute()/'merged/events.db'),
@@ -75,6 +75,13 @@ def main(args: argparse.Namespace) -> None:
         );
 
         input_datasets.append(ds);
+
+    # make ensemble
+    dataset = EnsembleDataset(input_datasets);
+    input_datasets[0].config.selection = {
+        'train': '2000 random events',
+        'test':  '5000 random events'
+    };
 
     # todo: actually implement training
     backbone = DynEdge(
@@ -98,10 +105,16 @@ def main(args: argparse.Namespace) -> None:
     );
 
     loader = DataLoader(
-        input_datasets[0],
+        input_datasets[0]['train'],
         batch_size=16
     );
 
-    model.fit(loader, max_epochs=1, gpus=args.train_usegpus)
+    # train
+    model.fit(loader, max_epochs=20, gpus=args.train_usegpus)
+
+    # log result to model output
+    result = model.predict_as_dataframe(input_datasets[0]['validation']);
+    (args.train_output / 'logs/' ).mkdir();
+    result.to_csv(str(args.train_output / 'logs/loss.csv'));
 
     return
