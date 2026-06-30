@@ -361,8 +361,8 @@ def execute_remote(args: Namespace):
                     arguments=
                         str(venv_root/'bin/python') +
                         ' -m icetoptnn' +
-                        ' ' + 'data create' +
                         ' ' + '--workdir /:tmp:/' +
+                        ' ' + 'data create' +
                         f' -W {args.data_create_workers}' + # TODO: add workers and scale resources
                         ' ' + str(job_dir / 'output/') +
                         ' ' + str(job_dir / 'job.yml'),
