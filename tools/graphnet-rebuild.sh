@@ -10,7 +10,7 @@ if ! [ -f "$ICETOPTNN_ENVIRONMENT_PATH" ]; then
     echo "ERROR: Unable to read $ICETOPTNN_ENVIRONMENT_PATH, are you at the repository root?" >> /dev/stderr;
     exit 1;
 fi;
-source $ICETOPTNN_ENVIRONMENT_ROOT
+source $ICETOPTNN_ENVIRONMENT_PATH
 
 # rebuild graphnet
 pushd external/graphnet
