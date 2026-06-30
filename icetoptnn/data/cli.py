@@ -325,7 +325,7 @@ def execute_remote(args: Namespace):
                 requirements=EXECUTION_REQUIREMENT_AD,
                 request_memory="8GB", # 5458344KB on last check. this uses a ton of memory. it may use even more
                 extra_lines=[
-                    f'environment = "PYTHONPATH=\'{os.environ['PYTHONPATH']}:{get_project_root().resolve()}/\'"'
+                    f'environment = "PYTHONPATH=\'{os.environ['PYTHONPATH']}:{get_project_root().resolve()}/\'","ICETOPTNN_ENVIRONMENT_PATH=\'{args.environment_path}\'"'
                 ],
                 dag=dag);
 
@@ -374,7 +374,7 @@ def execute_remote(args: Namespace):
                     request_memory="8GB",
                     request_cpus=args.data_create_workers,
                     extra_lines=[
-                        f'environment = "PYTHONPATH=\'{os.environ['PYTHONPATH']}:{get_project_root().resolve()}/\'"'
+                        f'environment = "PYTHONPATH=\'{os.environ['PYTHONPATH']}:{get_project_root().resolve()}/\'","ICETOPTNN_ENVIRONMENT_PATH=\'{args.environment_path}\'"'
                     ],
                     dag=dag);
 

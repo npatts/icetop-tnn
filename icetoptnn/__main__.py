@@ -20,7 +20,7 @@ def main() -> None:
                                 default=0,
                                 action='count');
     ap_root_parser.add_argument('--env', type=str, help='override environment.txt path', dest='environment_path',
-                                default=util.get_project_root()/'environment.txt')
+                                default=os.getenv('ICETOPTNN_ENVIRONMENT_PATH') or util.get_project_root()/'environment.txt')
 
     # Working directory
     ap_root_parser.add_argument('--workdir', type=pathlib.Path, dest='workdir',

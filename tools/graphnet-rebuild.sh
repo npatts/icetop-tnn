@@ -1,11 +1,16 @@
 #!/usr/bin/env bash
 
+# path
+if [ -z "$ICETOPTNN_ENVIRONMENT_PATH" ]; then
+    ICETOPTNN_ENVIRONMENT_PATH=./environment.txt
+fi;
+
 # load environment.txt
-if ! [ -f ./environment.txt ]; then
-    echo "ERROR: Unable to read environment.txt, are you at the repository root?" >> /dev/stderr;
+if ! [ -f "$ICETOPTNN_ENVIRONMENT_PATH" ]; then
+    echo "ERROR: Unable to read $ICETOPTNN_ENVIRONMENT_PATH, are you at the repository root?" >> /dev/stderr;
     exit 1;
 fi;
-source ./environment.txt
+source $ICETOPTNN_ENVIRONMENT_ROOT
 
 # rebuild graphnet
 pushd external/graphnet
