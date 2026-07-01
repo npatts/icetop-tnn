@@ -73,7 +73,7 @@ def main(args: argparse.Namespace) -> None:
     # make datasets
     datasets = {}
     loaders = {}
-    for ds_name, ds_selection in iter(DATASET_SELECTIONS):
+    for ds_name, ds_selection in DATASET_SELECTIONS.items():
         # set up dataset list
         input_datasets = [];
         for i in args.train_datasets:
