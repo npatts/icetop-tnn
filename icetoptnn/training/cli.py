@@ -21,8 +21,8 @@ from graphnet.training.loss_functions import MSELoss;
 from ..model.demo import DemoModel;
 
 DATASET_SELECTIONS = {
-    'train': '2000 random events',
-    'test':  '5000 random events'
+    'train': '2000 random events ~ true',
+    'test':  '5000 random events ~ true'
 }
 
 def apply_arguments(subparsers) -> None:
