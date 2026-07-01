@@ -20,6 +20,11 @@ from graphnet.training.loss_functions import MSELoss;
 
 from ..model.demo import DemoModel;
 
+DATASET_SELECTIONS = {
+    'train': '2000 random events',
+    'test':  '5000 random events'
+}
+
 def apply_arguments(subparsers) -> None:
     """Add arguments to the train subcommand"""
 
@@ -51,7 +56,6 @@ def main(args: argparse.Namespace) -> None:
     if len(args.train_datasets) != 1:
         raise Exception(f'The ability to use multiple datasets is currently broken');
 
-    input_datasets = [];
     for i in args.train_datasets:
         if not i.is_dir():
             raise NotADirectoryError(f'input dataset "{i}" is not a directory');
@@ -66,25 +70,31 @@ def main(args: argparse.Namespace) -> None:
         nb_nearest_neighbours = 20
     );
 
-    # set up dataset list
-    for i in args.train_datasets:
-        ds = SQLiteDataset(
-            path = str(i.absolute()/'merged/events.db'),
-            pulsemaps=[ 'OfflineIceTopHLCTankPulses' ],
-            truth_table = 'truth',
-            features = INPUT_FEATURES,
-            truth = [ 'energy' ],
-            graph_definition = graph_definition
+    # make datasets
+    datasets = {}
+    loaders = {}
+    for ds_name, ds_selection in iter(DATASET_SELECTIONS):
+        # set up dataset list
+        input_datasets = [];
+        for i in args.train_datasets:
+            ds = SQLiteDataset(
+                path = str(i.absolute()/'merged/events.db'),
+                pulsemaps=[ 'OfflineIceTopHLCTankPulses' ],
+                truth_table = 'truth',
+                features = INPUT_FEATURES,
+                truth = [ 'energy' ],
+                graph_definition = graph_definition,
+                selection=ds_selection
+            );
+
+            input_datasets.append(ds);
+
+        # make dataset
+        datasets[ds_name] = EnsembleDataset(input_datasets);
+        loaders[ds_name] = DataLoader(
+            datasets[ds_name],
+            batch_size=16
         );
-
-        input_datasets.append(ds);
-
-    # make ensemble
-    dataset = EnsembleDataset(input_datasets);
-    input_datasets[0].config.selection = {
-        'train': '2000 random events',
-        'test':  '5000 random events'
-    };
 
     # todo: actually implement training
     backbone = DynEdge(
@@ -107,17 +117,11 @@ def main(args: argparse.Namespace) -> None:
         ]
     );
 
-    loader = DataLoader(
-        input_datasets[0]['train'],
-        
-        batch_size=16
-    );
-
     # train
-    model.fit(loader, max_epochs=20, gpus=args.train_usegpus)
+    model.fit(loaders['train'], max_epochs=20, gpus=args.train_usegpus)
 
     # log result to model output
-    result = model.predict_as_dataframe(input_datasets[0]['validation']);
+    result = model.predict_as_dataframe(loaders['validation'], additional_attributes = ['event_no']);
     (args.train_output / 'logs/' ).mkdir();
     result.to_csv(str(args.train_output / 'logs/loss.csv'));
 
