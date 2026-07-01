@@ -32,7 +32,7 @@ def apply_arguments(subparsers) -> None:
                                 nargs='+');
 
     ap_root_parser.add_argument('-G', type=int, help='use gpu', dest='train_usegpus',
-                                nargs='+')
+                                action='append')
 
     return
 
@@ -47,6 +47,9 @@ def main(args: argparse.Namespace) -> None:
         raise NotADirectoryError(f'output parent directory "{args.train_output}" is not a directory');
     if args.train_output.is_dir() and len(args.train_output.iterdir()) > 0:
         raise Exception(f'output directory "{args.train_output}" is not empty');
+
+    if len(args.train_datasets) != 1:
+        raise Exception(f'The ability to use multiple datasets is currently broken');
 
     input_datasets = [];
     for i in args.train_datasets:
@@ -106,6 +109,7 @@ def main(args: argparse.Namespace) -> None:
 
     loader = DataLoader(
         input_datasets[0]['train'],
+        
         batch_size=16
     );
 
