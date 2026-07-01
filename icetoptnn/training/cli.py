@@ -121,7 +121,7 @@ def main(args: argparse.Namespace) -> None:
     model.fit(loaders['train'], max_epochs=20, gpus=args.train_usegpus)
 
     # log result to model output
-    result = model.predict_as_dataframe(loaders['validation'], additional_attributes = ['event_no']);
+    result = model.predict_as_dataframe(loaders['test'], additional_attributes = ['event_no']);
     (args.train_output / 'logs/' ).mkdir();
     result.to_csv(str(args.train_output / 'logs/loss.csv'));
 
