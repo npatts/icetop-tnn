@@ -20,11 +20,6 @@ from graphnet.training.loss_functions import MSELoss;
 
 from ..model.demo import DemoModel;
 
-DATASET_SELECTIONS = {
-    'train': '2000 random events ~ true',
-    'test':  '5000 random events ~ true'
-}
-
 def apply_arguments(subparsers) -> None:
     """Add arguments to the train subcommand"""
 
@@ -38,6 +33,10 @@ def apply_arguments(subparsers) -> None:
 
     ap_root_parser.add_argument('-G', type=int, help='use gpu', dest='train_usegpus',
                                 action='append')
+
+    ap_root_parser.add_argument('-S', type=str, dest='train_selection',
+                                help='selection query to use when training the model',
+                                default='2000 random events ~ true');
 
     return
 
@@ -72,31 +71,24 @@ def main(args: argparse.Namespace) -> None:
         nb_nearest_neighbours = 20
     );
 
-    # make datasets
-    datasets = {}
-    loaders = {}
-    for ds_name, ds_selection in DATASET_SELECTIONS.items():
-        # set up dataset list
-        input_datasets = [];
-        for i in args.train_datasets:
-            ds = SQLiteDataset(
-                path = str(i.absolute()/'merged/events.db'),
-                pulsemaps=[ 'OfflineIceTopHLCTankPulses' ],
-                truth_table = 'truth',
-                features = INPUT_FEATURES,
-                truth = [ 'energy' ],
-                graph_definition = graph_definition,
-                selection=ds_selection
-            );
-
-            input_datasets.append(ds);
-
-        # make dataset
-        datasets[ds_name] = EnsembleDataset(input_datasets);
-        loaders[ds_name] = DataLoader(
-            datasets[ds_name],
-            batch_size=16
+    # set up dataset list
+    input_datasets = [];
+    for i in args.train_datasets:
+        ds = SQLiteDataset(
+            path = str(i.absolute()/'merged/events.db'),
+            pulsemaps=[ 'OfflineIceTopHLCTankPulses' ],
+            truth_table = 'truth',
+            features = INPUT_FEATURES,
+            truth = [ 'energy' ],
+            graph_definition = graph_definition,
+            selection=args.train_selection
         );
+
+        input_datasets.append(ds);
+
+    # make dataset
+    dataset = EnsembleDataset(input_datasets);
+    loader = DataLoader(dataset, batch_size = 16);
 
     # todo: actually implement training
     backbone = DynEdge(
@@ -120,11 +112,10 @@ def main(args: argparse.Namespace) -> None:
     );
 
     # train
-    model.fit(loaders['train'], max_epochs=20, gpus=args.train_usegpus)
+    model.fit(loader, max_epochs=20, gpus=args.train_usegpus)
 
-    # log result to model output
-    result = model.predict_as_dataframe(loaders['test'], additional_attributes = ['event_no']);
-    (args.train_output / 'logs/' ).mkdir();
-    result.to_csv(str(args.train_output / 'logs/loss.csv'));
+    # save model
+    model.save_config(str(args.train_output / 'config.yml'));
+    model.save(str(args.train_output / 'weights.pth'));
 
     return
