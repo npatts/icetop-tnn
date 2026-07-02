@@ -51,7 +51,7 @@ def main(args: argparse.Namespace) -> None:
     print(model_config.as_dict())
     print(model_config.as_dict()['ModelConfig']['arguments']['graph_definition'])
 
-    graph_definition = GraphDefinition.from_config(model_config.as_dict()['ModelConfig']['arguments']['graph_definition']);
+    graph_definition = GraphDefinition.from_config(model_config.model_config['graph_definition']);
 
     print(graph_definition);
 
