@@ -5,7 +5,9 @@
 import argparse;
 from pathlib import Path;
 
+from graphnet.data.dataset.dataset import GraphDefinition
 from graphnet.models import Model;
+from graphnet.models.data_representation.graphs import graph_definition
 from graphnet.utilities.config import ModelConfig;
 
 from ..training.cli import INPUT_FEATURES, INPUT_TRUTH; # TODO(npatterson): SLOP!!!!!!!!!!!
@@ -41,10 +43,12 @@ def main(args: argparse.Namespace) -> None:
         raise FileNotFoundError(f'{args.eval_model} has no weights.pth');
 
     # load model
-    model = Model.from_config(
-        ModelConfig.load(str(args.eval_model/'config.yml')),
-        trust=True, # super secure :)
-    );
+    model_config = ModelConfig.load(str(args.eval_model/'config.yml'));
+    model = Model.from_config(model_config, trust=True); # super secure :)
+
     print(model);
+    print(model_config);
+    print(model_config.as_dict())
+    print(model_config.as_dict()['arguments']['graph_definition'])
 
     return
