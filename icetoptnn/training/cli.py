@@ -116,6 +116,6 @@ def main(args: argparse.Namespace) -> None:
 
     # save model
     model.save_config(str(args.train_output / 'config.yml'));
-    model.save(str(args.train_output / 'weights.pth'));
+    model.save_state_dict(str(args.train_output / 'weights.pth'));
 
     return
