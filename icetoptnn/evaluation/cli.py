@@ -6,9 +6,10 @@ import argparse;
 from pathlib import Path;
 
 from graphnet.data.dataset.dataset import GraphDefinition
+from graphnet.data.dataloader import DataLoader;
 from graphnet.models import Model;
 from graphnet.models.data_representation.graphs import graph_definition
-from graphnet.utilities.config import ModelConfig;
+from graphnet.utilities.config import ModelConfig
 
 from ..training.cli import INPUT_FEATURES, INPUT_TRUTH; # TODO(npatterson): SLOP!!!!!!!!!!!
 from ..util import load_datasets;
@@ -45,14 +46,14 @@ def main(args: argparse.Namespace) -> None:
     # load model
     model_config = ModelConfig.load(str(args.eval_model/'config.yml'));
     model = Model.from_config(model_config, trust=True); # super secure :)
-
-    print(model);
-    print(model_config);
-    print(model_config.as_dict())
-    print(model_config.arguments)
-
     graph_definition = GraphDefinition.from_config(model_config.arguments['graph_definition']);
 
-    print(graph_definition);
+    # load dataset
+    dataset = load_datasets(args.eval_datasets, graph_definition, INPUT_FEATURES, INPUT_TRUTH,
+                            selection=args.eval_selection);
+    loader = DataLoader(dataset, batch_size=64);
+
+    print(dataset)
+    print(loader)
 
     return
