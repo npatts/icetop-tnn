@@ -19,7 +19,7 @@ from graphnet.models.task.reconstruction import AzimuthReconstruction, ZenithRec
 from graphnet.training.loss_functions import MSELoss;
 
 from ..model.demo import DemoModel;
-from .. import load_datasets;
+from ..util import load_datasets;
 
 # Arguments make these actual arguments or YAML things later!!!
 INPUT_FEATURES = [ 'dom_x', 'dom_y', 'dom_z', 'dom_time', 'charge', 'rde', 'pmt_area', 'hlc' ];
