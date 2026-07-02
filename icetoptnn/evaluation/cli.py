@@ -49,6 +49,10 @@ def main(args: argparse.Namespace) -> None:
     print(model);
     print(model_config);
     print(model_config.as_dict())
-    print(model_config.as_dict()['arguments']['graph_definition'])
+    print(model_config.as_dict()['ModelConfig']['arguments']['graph_definition'])
+
+    graph_definition = GraphDefinition.from_config(model_config.as_dict()['ModelConfig']['arguments']['graoh_definition']);
+
+    print(graph_definition);
 
     return
