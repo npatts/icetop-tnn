@@ -49,7 +49,7 @@ def main(args: argparse.Namespace) -> None:
     # validate args
     if not args.train_output.parent.is_dir():
         raise NotADirectoryError(f'output parent directory "{args.train_output}" is not a directory');
-    if args.train_output.is_dir() and len(args.train_output.iterdir()) > 0:
+    if args.train_output.is_dir() and len([1 for _ in args.train_output.iterdir()]) > 0:
         raise Exception(f'output directory "{args.train_output}" is not empty');
     if not args.train_output.exists():
         args.train_output.mkdir();
