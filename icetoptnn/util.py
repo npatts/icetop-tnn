@@ -3,8 +3,11 @@
 """
 
 import sys;
-import pathlib;
+from pathlib import Path;
 import math;
+
+from graphnet.data.dataset import SQLiteDataset, EnsembleDataset
+from graphnet.data.dataset.dataset import GraphDefinition;
 
 # KNOWN_EXTENSIONS = [ '.i3', '.i3.gz', '.i3.bz2', '.root', '.h5' ];
 # SKIPPED_EXTENSIONS = [ '.root', '.h5' ];
@@ -33,10 +36,10 @@ def validate_ext(name: str, allowed: list[str]) -> tuple[str, str]:
 
     return (name, ext);
 
-def get_project_root() -> pathlib.Path:
+def get_project_root() -> Path:
     """Get the root directory if the IceTop-GNN repository"""
 
-    return pathlib.Path(sys.argv[0]).resolve().parents[1];
+    return Path(sys.argv[0]).resolve().parents[1];
 
 def prompt_yn(prompt: str) -> bool:
     """Display a yes/no prompt to the user"""
@@ -81,3 +84,33 @@ def parse_storage(string: str) -> int:
     # math
     return math.ceil(amount * pow(base, magnitude));
 
+def load_datasets(datasets: list[Path], graphdef: GraphDefinition, features: list[str], truth: list[str],
+                  selection: str = 'true',
+                  pulsemaps: list[str] = [ 'OfflineIceTopHLCTankPulses' ],
+                  truth_table: str = 'truth') -> EnsembleDataset:
+    """Load a list of datasets and return an ensemble containing them"""
+
+    # validate
+    for i in datasets:
+        if not i.is_dir():
+            raise NotADirectoryError(f'input dataset "{i}" is not a directory');
+        if not (i/'merged/events.db').is_file():
+            raise FileNotFoundError(f'input dataset "{i}" is not a icetop-tnn dataset');
+
+    # open
+    input_datasets = [];
+    for i in datasets:
+        ds = SQLiteDataset(
+            path = str(i.absolute()/'merged/events.db'),
+            pulsemaps = pulsemaps,
+            truth_table = truth,
+            features = features,
+            truth = truth,
+            graph_definition = graphdef,
+            selection=selection
+        );
+
+        input_datasets.append(ds);
+
+    # make dataset
+    return EnsembleDataset(input_datasets);

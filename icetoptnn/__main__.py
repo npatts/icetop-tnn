@@ -4,6 +4,7 @@ import os;
 import pathlib;
 import tempfile;
 
+from .evaluation import cli as evaluation_cli;
 from .training import cli as training_cli;
 from .data import cli as data_cli;
 from . import util;
@@ -49,6 +50,9 @@ def main() -> None:
     # Trainer command/arguments
     training_cli.apply_arguments(ap_root_subparsers);
 
+    # Evaluation command/arguments
+    evaluation_cli.apply_arguments(ap_root_subparsers)
+
     # Parse arguments
     args = ap_root_parser.parse_args();
 
@@ -79,6 +83,8 @@ def main() -> None:
             data_cli.main(args);
         case 'train':
             training_cli.main(args);
+        case 'eval':
+            evaluation_cli.main(args);
         case _:
             # Print help if no subcommand specified
             print('error: no subcommand specified', file=sys.stderr);

@@ -19,6 +19,11 @@ from graphnet.models.task.reconstruction import AzimuthReconstruction, ZenithRec
 from graphnet.training.loss_functions import MSELoss;
 
 from ..model.demo import DemoModel;
+from .. import load_datasets;
+
+# Arguments make these actual arguments or YAML things later!!!
+INPUT_FEATURES = [ 'dom_x', 'dom_y', 'dom_z', 'dom_time', 'charge', 'rde', 'pmt_area', 'hlc' ];
+INPUT_TRUTH    = [ 'energy' ];
 
 def apply_arguments(subparsers) -> None:
     """Add arguments to the train subcommand"""
@@ -43,9 +48,6 @@ def apply_arguments(subparsers) -> None:
 def main(args: argparse.Namespace) -> None:
     """Train subcommand entry point"""
 
-    # Arguments make these actual arguments or YAML things later!!!
-    INPUT_FEATURES = [ 'dom_x', 'dom_y', 'dom_z', 'dom_time', 'charge', 'rde', 'pmt_area', 'hlc' ];
-
     # validate args
     if not args.train_output.parent.is_dir():
         raise NotADirectoryError(f'output parent directory "{args.train_output}" is not a directory');
@@ -57,12 +59,6 @@ def main(args: argparse.Namespace) -> None:
     if len(args.train_datasets) != 1:
         raise Exception(f'The ability to use multiple datasets is currently broken');
 
-    for i in args.train_datasets:
-        if not i.is_dir():
-            raise NotADirectoryError(f'input dataset "{i}" is not a directory');
-        if not (i/'merged/events.db').is_file():
-            raise FileNotFoundError(f'input dataset "{i}" is not a icetop-tnn dataset');
-
     # graph def
     graph_definition = KNNGraph(
         detector = IceCube86(),
@@ -71,23 +67,9 @@ def main(args: argparse.Namespace) -> None:
         nb_nearest_neighbours = 20
     );
 
-    # set up dataset list
-    input_datasets = [];
-    for i in args.train_datasets:
-        ds = SQLiteDataset(
-            path = str(i.absolute()/'merged/events.db'),
-            pulsemaps=[ 'OfflineIceTopHLCTankPulses' ],
-            truth_table = 'truth',
-            features = INPUT_FEATURES,
-            truth = [ 'energy' ],
-            graph_definition = graph_definition,
-            selection=args.train_selection
-        );
-
-        input_datasets.append(ds);
-
     # make dataset
-    dataset = EnsembleDataset(input_datasets);
+    dataset = load_datasets(args.train_datasets, graph_definition, INPUT_FEATURES, INPUT_TRUTH,
+                            selection=args.train_selection);
     loader = DataLoader(dataset, batch_size = 16);
 
     # todo: actually implement training
