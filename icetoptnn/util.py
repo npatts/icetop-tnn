@@ -103,7 +103,7 @@ def load_datasets(datasets: list[Path], graphdef: GraphDefinition, features: lis
         ds = SQLiteDataset(
             path = str(i.absolute()/'merged/events.db'),
             pulsemaps = pulsemaps,
-            truth_table = truth,
+            truth_table = truth_table,
             features = features,
             truth = truth,
             graph_definition = graphdef,
