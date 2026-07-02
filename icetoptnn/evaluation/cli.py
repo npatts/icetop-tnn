@@ -41,7 +41,10 @@ def main(args: argparse.Namespace) -> None:
         raise FileNotFoundError(f'{args.eval_model} has no weights.pth');
 
     # load model
-    model = Model.from_config(ModelConfig.load(str(args.eval_model/'config.yml')));
+    model = Model.from_config(
+        ModelConfig.load(str(args.eval_model/'config.yml')),
+        trust=True, # super secure :)
+    );
     print(model);
 
     return
