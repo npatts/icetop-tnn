@@ -56,7 +56,7 @@ def main(args: argparse.Namespace) -> None:
         raise FileNotFoundError(f'{args.eval_model} has no model.yml');
 
     # load model info
-    model_info = yaml.load(open(args.eval_model/'model.yml'), yaml.Loader)l
+    model_info = yaml.load(open(args.eval_model/'model.yml'), yaml.Loader);
     if not isinstance(model_info, TrainedModelInfo):
         raise TypeError(f'Model file is unexpected type {type(model_info)}');
 
