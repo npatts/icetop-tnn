@@ -41,7 +41,7 @@ def apply_arguments(subparsers) -> None:
 
     ap_root_parser.add_argument('-S', type=str, dest='train_selection',
                                 help='selection query to use when training the model',
-                                default='2000 random events ~ true');
+                                default='2000 random events ~ event_no == event_no');
 
     return
 

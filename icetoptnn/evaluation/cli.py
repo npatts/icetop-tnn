@@ -33,7 +33,7 @@ def apply_arguments(subparsers) -> None:
 
     ap_root_parser.add_argument('-S', type=str, dest='eval_selection',
                                 help='selection query to use for evaluation',
-                                default='5000 random events ~ true');
+                                default='5000 random events ~ event_no == event_no');
 
     return;
 
