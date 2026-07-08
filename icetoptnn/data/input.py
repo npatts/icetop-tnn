@@ -59,7 +59,7 @@ class GroupDefinition(InputDefinition, yaml.YAMLObject):
         A group of other definitions to pull source files from
     """
 
-    yaml_tag = '!tnndata/group';
+    yaml_tag = '!tnn/group';
 
     contents: list[InputDefinition] = [];
     """Input definitions contained within this group"""
@@ -73,7 +73,7 @@ class FileDefinition(InputDefinitionWithData, yaml.YAMLObject):
         A file or directory to pull data from
     """
 
-    yaml_tag = '!tnndata/file';
+    yaml_tag = '!tnn/file';
 
     path: Path;
     """The path to the target file or directory"""

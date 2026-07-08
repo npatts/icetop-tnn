@@ -3,9 +3,12 @@
 """
 
 from pathlib import Path;
+import random;
 import argparse;
 
 import torch;
+from torch.utils.data import random_split;
+import yaml;
 
 from graphnet.data.dataloader import DataLoader;
 from graphnet.data.dataset import SQLiteDataset, EnsembleDataset;
@@ -20,10 +23,22 @@ from graphnet.training.loss_functions import MSELoss;
 
 from ..model.demo import DemoModel;
 from ..util import load_datasets;
+from .training_info import TrainedModelInfo;
 
 # Arguments make these actual arguments or YAML things later!!!
 INPUT_FEATURES = [ 'dom_x', 'dom_y', 'dom_z', 'dom_time', 'charge', 'rde', 'pmt_area', 'hlc' ];
 INPUT_TRUTH    = [ 'energy' ];
+
+# More hardcoded nonsense!
+SPLIT_TRAINING   = 0.7;
+SPLIT_VALIDATION = 0.1;
+SPLIT_TESTING    = 0.2;
+
+# TODO: change these
+DEFAULT_SEED_SPLIT = 1234567;
+
+# more!
+BATCH_SIZE = 64;
 
 def apply_arguments(subparsers) -> None:
     """Add arguments to the train subcommand"""
@@ -39,9 +54,13 @@ def apply_arguments(subparsers) -> None:
     ap_root_parser.add_argument('-G', type=int, help='use gpu', dest='train_usegpus',
                                 action='append')
 
-    ap_root_parser.add_argument('-S', type=str, dest='train_selection',
-                                help='selection query to use when training the model',
-                                default='2000 random events ~ event_no == event_no');
+    ap_root_parser.add_argument('--split-seed', type=int, dest='train_splitseed',
+                                help='seed to use when splitting the dataset',
+                                default=DEFAULT_SEED_SPLIT);
+
+    ap_root_parser.add_argument('--loader-workers', type=int, dest='train_loaderworkers',
+                                help='number of workers to use for each data loader',
+                                default = 1);
 
     return
 
@@ -68,9 +87,19 @@ def main(args: argparse.Namespace) -> None:
     );
 
     # make dataset
-    dataset = load_datasets(args.train_datasets, graph_definition, INPUT_FEATURES, INPUT_TRUTH,
-                            selection=args.train_selection);
-    loader = DataLoader(dataset, batch_size = 16);
+    dataset = load_datasets(args.train_datasets, graph_definition, INPUT_FEATURES, INPUT_TRUTH);
+
+    # split dataset
+    datasplit_training, datasplit_validation, datasplit_testing = random_split(
+        dataset,
+        [ SPLIT_TRAINING, SPLIT_VALIDATION, SPLIT_TESTING ],
+        torch.Generator().manual_seed(args.train_splitseed)
+    );
+
+    loader_training = DataLoader(datasplit_training, batch_size = BATCH_SIZE, shuffle=True,
+                                 num_workers=args.train_loaderworkers);
+    loader_validation = DataLoader(datasplit_validation, batch_size = BATCH_SIZE, shuffle=False,
+                                   num_workers=args.train_loaderworkers);
 
     # todo: actually implement training
     backbone = DynEdge(
@@ -94,10 +123,21 @@ def main(args: argparse.Namespace) -> None:
     );
 
     # train
-    model.fit(loader, max_epochs=20, gpus=args.train_usegpus)
+    model.fit(loader_training, loader_validation, max_epochs=20, gpus=args.train_usegpus)
+
+    # create training info structure
+    info = TrainedModelInfo();
+    info.seed_split = args.train_splitseed;
+    info.split_training = SPLIT_TRAINING;
+    info.split_validation = SPLIT_VALIDATION;
+    info.split_testing = SPLIT_TESTING;
+    info.vset_features = INPUT_FEATURES;
+    info.vset_truth = INPUT_TRUTH;
+    info.datasets = args.train_datasets;
 
     # save model
     model.save_config(str(args.train_output / 'config.yml'));
     model.save_state_dict(str(args.train_output / 'weights.pth'));
+    yaml.dump(info, open(args.train_output / 'model.yml', 'w'));
 
     return

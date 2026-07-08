@@ -85,7 +85,6 @@ def parse_storage(string: str) -> int:
     return math.ceil(amount * pow(base, magnitude));
 
 def load_datasets(datasets: list[Path], graphdef: GraphDefinition, features: list[str], truth: list[str],
-                  selection: str = 'true',
                   pulsemaps: list[str] = [ 'OfflineIceTopHLCTankPulses' ],
                   truth_table: str = 'truth') -> EnsembleDataset:
     """Load a list of datasets and return an ensemble containing them"""
@@ -106,8 +105,7 @@ def load_datasets(datasets: list[Path], graphdef: GraphDefinition, features: lis
             truth_table = truth_table,
             features = features,
             truth = truth,
-            graph_definition = graphdef,
-            selection=selection
+            graph_definition = graphdef
         );
 
         input_datasets.append(ds);

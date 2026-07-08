@@ -5,13 +5,18 @@
 import argparse;
 from pathlib import Path;
 
+import torch;
+from torch.nn.modules import instancenorm
+from torch.utils.data import random_split;
+import yaml;
+
 from graphnet.data.dataset.dataset import GraphDefinition
 from graphnet.data.dataloader import DataLoader;
 from graphnet.models import Model, StandardModel;
 from graphnet.models.data_representation.graphs import graph_definition
 from graphnet.utilities.config import ModelConfig
 
-from ..training.cli import INPUT_FEATURES, INPUT_TRUTH; # TODO(npatterson): SLOP!!!!!!!!!!!
+from ..training.training_info import TrainedModelInfo;
 from ..util import load_datasets;
 
 def apply_arguments(subparsers) -> None:
@@ -24,16 +29,9 @@ def apply_arguments(subparsers) -> None:
                                 help='output directory');
     ap_root_parser.add_argument(metavar='model', type=Path, dest='eval_model',
                                 help='model directory');
-    ap_root_parser.add_argument(metavar='datasets', type=Path, dest='eval_datasets',
-                                nargs='+',
-                                help='datasets to use in evaluation');
 
     ap_root_parser.add_argument('-G', type=int, help='use gpu', dest='eval_usegpus',
                                 action='append');
-
-    ap_root_parser.add_argument('-S', type=str, dest='eval_selection',
-                                help='selection query to use for evaluation',
-                                default='5000 random events ~ event_no == event_no');
 
     return;
 
@@ -54,6 +52,13 @@ def main(args: argparse.Namespace) -> None:
         raise FileNotFoundError(f'{args.eval_model} has no config.yml');
     if not (args.eval_model/'weights.pth').is_file():
         raise FileNotFoundError(f'{args.eval_model} has no weights.pth');
+    if not (args.eval_model/'model.yml').is_file():
+        raise FileNotFoundError(f'{args.eval_model} has no model.yml');
+
+    # load model info
+    model_info = yaml.load(open(args.eval_model/'model.yml'), yaml.Loader)l
+    if not isinstance(model_info, TrainedModelInfo):
+        raise TypeError(f'Model file is unexpected type {type(model_info)}');
 
     # load model
     model_config = ModelConfig.load(str(args.eval_model/'config.yml'));
@@ -64,9 +69,17 @@ def main(args: argparse.Namespace) -> None:
         raise TypeError('Model is not a StandardModel instance');
 
     # load dataset
-    dataset = load_datasets(args.eval_datasets, graph_definition, INPUT_FEATURES, INPUT_TRUTH,
-                            selection=args.eval_selection);
-    loader = DataLoader(dataset, batch_size=64);
+    dataset = load_datasets(model_info.datasets, graph_definition,
+                            model_info.vset_features, model_info.vset_truth)
+
+    # split dataset
+    _, _, datasplit_testing = random_split(
+        dataset,
+        [ model_info.split_training, model_info.split_validation, model_info.split_testing ],
+        torch.Generator().manual_seed(model_info.seed_split)
+    );
+
+    loader = DataLoader(datasplit_testing, batch_size=64);
 
     # predict
     results = model.predict_as_dataframe(
