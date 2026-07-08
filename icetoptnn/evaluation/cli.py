@@ -71,7 +71,7 @@ def main(args: argparse.Namespace) -> None:
     # predict
     results = model.predict_as_dataframe(
         loader,
-        additional_attributes=['event_no'],
+        additional_attributes=['event_no'] + model.target_labels,
         gpus=args.eval_usegpus
     );
 
