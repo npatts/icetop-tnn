@@ -79,6 +79,6 @@ def main(args: argparse.Namespace) -> None:
     if not args.eval_output.exists():
         args.eval_output.mkdir();
 
-    results.to_csv(str(args.eval_output/results.csv));
+    results.to_csv(str(args.eval_output/'results.csv'));
 
     return
