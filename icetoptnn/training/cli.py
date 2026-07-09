@@ -101,9 +101,9 @@ def main(args: argparse.Namespace) -> None:
         torch.Generator().manual_seed(args.train_splitseed)
     );
 
-    loader_training = DataLoader(datasplit_training, batch_size = BATCH_SIZE, shuffle=True,
+    loader_training = DataLoader(datasplit_training, batch_size = args.train_batchsize, shuffle=True,
                                  num_workers=args.train_loaderworkers);
-    loader_validation = DataLoader(datasplit_validation, batch_size = BATCH_SIZE, shuffle=False,
+    loader_validation = DataLoader(datasplit_validation, batch_size = args.train_batchsize, shuffle=False,
                                    num_workers=args.train_loaderworkers);
 
     # todo: actually implement training
@@ -128,7 +128,7 @@ def main(args: argparse.Namespace) -> None:
     );
 
     # train
-    model.fit(loader_training, loader_validation, max_epochs=20, gpus=args.train_usegpus)
+    model.fit(loader_training, loader_validation, max_epochs=args.train_maxepochs, gpus=args.train_usegpus)
 
     # create training info structure
     info = TrainedModelInfo();
