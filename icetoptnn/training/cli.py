@@ -54,6 +54,11 @@ def apply_arguments(subparsers) -> None:
     ap_root_parser.add_argument('-G', type=int, help='use gpu', dest='train_usegpus',
                                 action='append')
 
+    ap_root_parser.add_argument('-e', type=int, help='max epochs', dest='train_maxepochs',
+                                default=100);
+    ap_root_parser.add_argument('-B', type=int, help='batch size', dest='train_batchsize',
+                                default=64);
+
     ap_root_parser.add_argument('--split-seed', type=int, dest='train_splitseed',
                                 help='seed to use when splitting the dataset',
                                 default=DEFAULT_SEED_SPLIT);
