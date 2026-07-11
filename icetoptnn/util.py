@@ -86,8 +86,13 @@ def parse_storage(string: str) -> int:
 
 def load_datasets(datasets: list[Path], graphdef: GraphDefinition, features: list[str], truth: list[str],
                   pulsemaps: list[str] = [ 'OfflineIceTopHLCTankPulses' ],
-                  truth_table: str = 'truth') -> EnsembleDataset:
+                  truth_table: str = 'truth',
+                  selection: str = '5000 random events ~ event_no == event_no',
+                  selection_seed: int = 1234) -> EnsembleDataset: # TODO: TECH DEBT USE DEFAULT FROMT RAINER
     """Load a list of datasets and return an ensemble containing them"""
+
+    if len(datasets) != 1:
+        raise Exception('having more than one dataset is busted right now')
 
     # validate
     for i in datasets:
@@ -105,10 +110,12 @@ def load_datasets(datasets: list[Path], graphdef: GraphDefinition, features: lis
             truth_table = truth_table,
             features = features,
             truth = truth,
-            graph_definition = graphdef
+            graph_definition = graphdef,
+            selection = selection,
+            seed = selection_seed
         );
 
         input_datasets.append(ds);
 
     # make dataset
-    return EnsembleDataset(input_datasets);
+    return input_datasets[0];

@@ -14,6 +14,9 @@ class TrainedModelInfo(yaml.YAMLObject):
     yaml_tag='!tnn/model_info';
 
 
+    seed_selection: int;
+    """Seed used to select data from the dataset"""
+
     seed_split: int;
     """Seed used to split the dataset"""
 
@@ -30,6 +33,9 @@ class TrainedModelInfo(yaml.YAMLObject):
 
     datasets: list[Path];
     """Datasets used to train the model"""
+
+    selection: str;
+    """Dataset selection"""
 
 
     vset_features: list[str];

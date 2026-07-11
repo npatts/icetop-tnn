@@ -11,17 +11,13 @@ from torch.utils.data import random_split;
 import yaml;
 
 from graphnet.data.dataloader import DataLoader;
-from graphnet.data.dataset import SQLiteDataset, EnsembleDataset;
 from graphnet.models import StandardModel;
 from graphnet.models.data_representation.graphs import EdgelessGraph, NodesAsPulses, KNNGraph;
 from graphnet.models.detector import IceCube86;
 from graphnet.models.gnn import DynEdge;
-from graphnet.models.transformer import ISeeCube;
-from graphnet.models.rnn import Node_RNN;
 from graphnet.models.task.reconstruction import AzimuthReconstruction, ZenithReconstruction, EnergyReconstruction;
 from graphnet.training.loss_functions import MSELoss;
 
-from ..model.demo import DemoModel;
 from ..util import load_datasets;
 from .training_info import TrainedModelInfo;
 
@@ -36,9 +32,7 @@ SPLIT_TESTING    = 0.2;
 
 # TODO: change these
 DEFAULT_SEED_SPLIT = 1234567;
-
-# more!
-BATCH_SIZE = 64;
+DEFAULT_SEED_SELECTION = 7654321;
 
 def apply_arguments(subparsers) -> None:
     """Add arguments to the train subcommand"""
@@ -48,8 +42,7 @@ def apply_arguments(subparsers) -> None:
                                            'Trains a model using GraphNeT. Everything is currently hardcoded.');
 
     ap_root_parser.add_argument(metavar='output', type=Path, help='output directory', dest='train_output');
-    ap_root_parser.add_argument(metavar='datasets', type=Path, help='input dataset', dest='train_datasets',
-                                nargs='+');
+    ap_root_parser.add_argument(metavar='datasets', type=Path, help='input dataset', dest='train_datasets');
 
     ap_root_parser.add_argument('-G', type=int, help='use gpu', dest='train_usegpus',
                                 action='append')
@@ -59,6 +52,12 @@ def apply_arguments(subparsers) -> None:
     ap_root_parser.add_argument('-B', type=int, help='batch size', dest='train_batchsize',
                                 default=64);
 
+    ap_root_parser.add_argument('-S', type=str, help='dataset selection', dest='train_selection',
+                                default='5000 random events ~ event_no == event_no');
+
+    ap_root_parser.add_argument('--selection-seed', type=int, dest='train_selectionseed',
+                                help='seed to use when selecting events from the dataset',
+                                default=DEFAULT_SEED_SELECTION);
     ap_root_parser.add_argument('--split-seed', type=int, dest='train_splitseed',
                                 help='seed to use when splitting the dataset',
                                 default=DEFAULT_SEED_SPLIT);
@@ -80,9 +79,6 @@ def main(args: argparse.Namespace) -> None:
     if not args.train_output.exists():
         args.train_output.mkdir();
 
-    if len(args.train_datasets) != 1:
-        raise Exception(f'The ability to use multiple datasets is currently broken');
-
     # graph def
     graph_definition = KNNGraph(
         detector = IceCube86(),
@@ -92,7 +88,8 @@ def main(args: argparse.Namespace) -> None:
     );
 
     # make dataset
-    dataset = load_datasets(args.train_datasets, graph_definition, INPUT_FEATURES, INPUT_TRUTH);
+    dataset = load_datasets([ args.train_datasets ], graph_definition, INPUT_FEATURES, INPUT_TRUTH,
+                            selection=args.train_selection, selection_seed=args.train_selectionseed);
 
     # split dataset
     datasplit_training, datasplit_validation, datasplit_testing = random_split(
@@ -106,7 +103,7 @@ def main(args: argparse.Namespace) -> None:
     loader_validation = DataLoader(datasplit_validation, batch_size = args.train_batchsize, shuffle=False,
                                    num_workers=args.train_loaderworkers);
 
-    # todo: actually implement training
+    # todo: replace gnn with transformer model when it's finished.
     backbone = DynEdge(
         nb_inputs = len(INPUT_FEATURES),
         nb_neighbours = 20,
@@ -132,13 +129,15 @@ def main(args: argparse.Namespace) -> None:
 
     # create training info structure
     info = TrainedModelInfo();
+    info.seed_selection = args.train_selectionseed;
     info.seed_split = args.train_splitseed;
     info.split_training = SPLIT_TRAINING;
     info.split_validation = SPLIT_VALIDATION;
     info.split_testing = SPLIT_TESTING;
     info.vset_features = INPUT_FEATURES;
     info.vset_truth = INPUT_TRUTH;
-    info.datasets = args.train_datasets;
+    info.selection = args.train_selection;
+    info.datasets = [ args.train_datasets ];
 
     # save model
     model.save_config(str(args.train_output / 'config.yml'));
