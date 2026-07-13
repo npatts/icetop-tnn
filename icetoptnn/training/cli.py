@@ -62,8 +62,11 @@ def apply_arguments(subparsers) -> None:
                                 help='seed to use when splitting the dataset',
                                 default=DEFAULT_SEED_SPLIT);
 
-    ap_root_parser.add_argument('--loader-workers', type=int, dest='train_loaderworkers',
-                                help='number of workers to use for each data loader',
+    ap_root_parser.add_argument('--loader-training-workers', type=int, dest='train_loadertrainingworkers',
+                                help='number of workers to use for the training data loader',
+                                default = 1);
+    ap_root_parser.add_argument('--loader-validation-workers', type=int, dest='train_loadervalidationworkers',
+                                help='number of workers to use for the validation data loader',
                                 default = 1);
 
     return
@@ -99,9 +102,9 @@ def main(args: argparse.Namespace) -> None:
     );
 
     loader_training = DataLoader(datasplit_training, batch_size = args.train_batchsize, shuffle=True,
-                                 num_workers=args.train_loaderworkers);
+                                 num_workers=args.train_loadertrainingworkers);
     loader_validation = DataLoader(datasplit_validation, batch_size = args.train_batchsize, shuffle=False,
-                                   num_workers=args.train_loaderworkers);
+                                   num_workers=args.train_loadervalidationworkers);
 
     # todo: replace gnn with transformer model when it's finished.
     backbone = DynEdge(
