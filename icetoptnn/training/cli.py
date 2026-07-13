@@ -123,6 +123,8 @@ def main(args: argparse.Namespace) -> None:
             EnergyReconstruction(
                 hidden_size = 256,
                 loss_function = MSELoss(),
+                transform_prediction_and_target=lambda x: torch.log10(x),
+                transform_inference=lambda x: torch.pow(10, x)
             )
         ]
     );
