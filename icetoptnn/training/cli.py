@@ -105,6 +105,8 @@ def main(args: argparse.Namespace) -> None:
                                  num_workers=args.train_loadertrainingworkers);
     loader_validation = DataLoader(datasplit_validation, batch_size = args.train_batchsize, shuffle=False,
                                    num_workers=args.train_loadervalidationworkers);
+    loader_testing = DataLoader(datasplit_testing, batch_size = args.train_batchsize, shuffle=False,
+                                num_workers=args.train_loadervalidationworkers);
 
     # todo: replace gnn with transformer model when it's finished.
     backbone = DynEdge(
@@ -148,5 +150,13 @@ def main(args: argparse.Namespace) -> None:
     model.save_config(str(args.train_output / 'config.yml'));
     model.save_state_dict(str(args.train_output / 'weights.pth'));
     yaml.dump(info, open(args.train_output / 'model.yml', 'w'));
+
+    results = model.predict_as_dataframe(
+        loader_testing,
+        additional_attributes=['event_no'] + model.target_labels,
+        gpus=args.train_usegpus
+    );
+
+    results.to_csv(str(args.train_output/'results.csv'));
 
     return
