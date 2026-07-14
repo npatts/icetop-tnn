@@ -70,7 +70,8 @@ def main(args: argparse.Namespace) -> None:
 
     # load dataset
     dataset = load_datasets(model_info.datasets, graph_definition,
-                            model_info.vset_features, model_info.vset_truth)
+                            model_info.vset_features, model_info.vset_truth,
+                            selection=model_info.selection, selection_seed=model_info.seed_selection);
 
     # split dataset
     _, _, datasplit_testing = random_split(
