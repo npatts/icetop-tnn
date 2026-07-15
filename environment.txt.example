@@ -1,4 +1,5 @@
 ICETOP_TNN_VENV_ROOT=./.venv/
+ICETOP_TNN_MODEL_DIR=./private/models/
 PYTHON_EXECUTABLE=python3.12
 CONDOR_SCRATCH_DIR=/data/user/npatterson/icetop-tnn/scratch/
 CVMWRAP_CVMFS_PATH=/cvmfs/icecube.opensciencegrid.org/py3-v4.4.2/
