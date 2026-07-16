@@ -4,9 +4,10 @@ import torch as t;
 from torch import nn;
 from torch_geometric import nn as geonn;
 from torch_geometric import utils as geoutil;
-from torch_geometric.data import Data;
+from torch_geometric.data import Data, feature_store;
 
 from graphnet.models import Model;
+from graphnet.models.utils import array_to_sequence;
 
 class IceTopTNNTransformer(Model):
     input_length: int;
@@ -74,6 +75,11 @@ class IceTopTNNTransformer(Model):
 
         # convert x into a set of transformer embeddings
         x = self._embedding(x)
+        self._dump('embedding', x)
+
+        # pad all batches to equal length. i was going to implement this myself but i spotted it in gn.m.util
+        x, seq_mask, seq_lengths = array_to_sequence(x, batch, 0)
+        self._dump('sequence', x)
 
         # dummy remove this
         x = self.linear1(x);
@@ -97,19 +103,21 @@ class IceTopTNNTransformer(Model):
         x = self.readout(x);
         self._dump('readout', x)
 
+        # get the average of the outputs for each dom
+        x = t.mean(x, 1);
+        self._dump('squeeze', x)
+
         # combine outputs for each batch
         # i found this in dynedge, i think i'm using it right???
         # https://pytorch-geometric.readthedocs.io/en/latest/modules/utils.html#torch_geometric.utils.scatter
         # https://pytorch-scatter.readthedocs.io/en/latest/functions/scatter.html
-        x = geoutil.scatter(x, batch, 0, reduce='mean')
-        self._dump('scatter', x)
+        # x = geoutil.scatter(x, batch, 0, reduce='mean')
+        # self._dump('scatter', x)
 
         return x
 
     def _embedding(self, x: t.Tensor) -> t.Tensor:
         """Create an embedding for a single DOM"""
-
-        self._dump('embedding:input', x)
 
         # build encoding
         parts = [];
@@ -147,8 +155,6 @@ class IceTopTNNTransformer(Model):
 
         # combine back to make the encoding
         x = t.cat([parts, x], dim=1)
-
-        self._dump('embedding:output', x)
 
         return x
 
