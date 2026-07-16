@@ -19,11 +19,13 @@ from graphnet.models.task.reconstruction import AzimuthReconstruction, ZenithRec
 from graphnet.training.loss_functions import MSELoss;
 
 from ..util import load_datasets;
+from ..model.transformer import IceTopTNNTransformer;
 from .training_info import TrainedModelInfo;
 
 # Arguments make these actual arguments or YAML things later!!!
-INPUT_FEATURES = [ 'dom_x', 'dom_y', 'dom_z', 'dom_time', 'charge', 'rde', 'pmt_area', 'hlc' ];
-INPUT_TRUTH    = [ 'energy' ];
+INPUT_FEATURES  = [ 'dom_x', 'dom_y', 'dom_z', 'dom_time', 'charge', 'rde', 'pmt_area', 'hlc' ];
+INPUT_POSITIONS = [ 0, 1, 2 ]
+INPUT_TRUTH     = [ 'energy' ];
 
 # More hardcoded nonsense!
 SPLIT_TRAINING   = 0.7;
@@ -89,6 +91,11 @@ def main(args: argparse.Namespace) -> None:
         node_definition = NodesAsPulses(),
         nb_nearest_neighbours = 20
     );
+    graph_definition = EdgelessGraph(
+        detector = IceCube86(),
+        input_feature_names = INPUT_FEATURES,
+        node_definition = NodesAsPulses()
+    )
 
     # make dataset
     dataset = load_datasets([ args.train_datasets ], graph_definition, INPUT_FEATURES, INPUT_TRUTH,
@@ -116,6 +123,11 @@ def main(args: argparse.Namespace) -> None:
         readout_layer_sizes = [512, 256],
         global_pooling_schemes = [ 'max', 'mean' ],
         add_global_variables_after_pooling = False,
+    );
+    backbone = IceTopTNNTransformer(
+        input_length = graph_definition.nb_outputs,
+        output_length = 256,
+        positional_encoding_features = INPUT_POSITIONS
     );
 
     model = StandardModel(
