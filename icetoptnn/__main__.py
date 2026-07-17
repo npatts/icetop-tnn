@@ -31,18 +31,17 @@ def main() -> None:
     # Condor configuration arguments
     ap_root_parser.add_argument('--condor-scratch', type=pathlib.Path, dest='condor_scratchdir',
                                 help='Directory to store files for running DAGs. Should be a shared FS.');
+    ap_root_parser.add_argument('--condor-base', type=pathlib.Path, dest='condor_basedir',
+                                help'Directory to store condor submit files by default',
+                                default=util.get_project_root()/'private/condor/')
     ap_root_parser.add_argument('--condor-stdout', type=pathlib.Path, dest='condor_stdoutdir',
-                                help='HTCondor submmission stdout directory',
-                                default=util.get_project_root()/'private/condor/stdout/');
+                                help='HTCondor submmission stdout directory')
     ap_root_parser.add_argument('--condor-stderr', type=pathlib.Path, dest='condor_stderrdir',
-                                help='HTCondor submmission stderr directory',
-                                default=util.get_project_root()/'private/condor/stderr/');
+                                help='HTCondor submmission stderr directory')
     ap_root_parser.add_argument('--condor-logdir', type=pathlib.Path, dest='condor_logdir',
-                                help='HTCondor submmission log directory',
-                                default=util.get_project_root()/'private/condor/log/');
+                                help='HTCondor submmission log directory')
     ap_root_parser.add_argument('--condor-submitdir', type=pathlib.Path, dest='condor_submitdir',
-                                help='HTCondor submmission file directory',
-                                default=util.get_project_root()/'private/condor/submit/');
+                                help='HTCondor submmission file directory')
 
     # Datagen command/arguments
     data_cli.apply_arguments(ap_root_subparsers);
@@ -66,6 +65,16 @@ def main() -> None:
             raise Exception('CONDOR_SCRATCH_DIR is not set and a scratch dir was not provided with --condor-scratch');
 
         args.condor_scratchdir = pathlib.Path(scratch_dir);
+
+    # Default condor submit dir paths
+    if args.condor_stdoutdir is None:
+        args.condor_stdoutdir = args.condor_basedir / 'stdout/'
+    if args.condor_stderrdir is None:
+        args.condor_stderrdir = args.condor_basedir / 'stderr/'
+    if args.condor_logdir is None:
+        args.condor_logdir = args.condor_basedir / 'log/'
+    if args.condor_submitdir is None:
+        args.condor_submitdir = args.condor_basedir / 'submit/'
 
     # Validate arguments
     if not args.condor_scratchdir.exists():
