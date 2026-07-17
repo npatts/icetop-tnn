@@ -32,7 +32,7 @@ def main() -> None:
     ap_root_parser.add_argument('--condor-scratch', type=pathlib.Path, dest='condor_scratchdir',
                                 help='Directory to store files for running DAGs. Should be a shared FS.');
     ap_root_parser.add_argument('--condor-base', type=pathlib.Path, dest='condor_basedir',
-                                help'Directory to store condor submit files by default',
+                                help='Directory to store condor submit files by default',
                                 default=util.get_project_root()/'private/condor/')
     ap_root_parser.add_argument('--condor-stdout', type=pathlib.Path, dest='condor_stdoutdir',
                                 help='HTCondor submmission stdout directory')
