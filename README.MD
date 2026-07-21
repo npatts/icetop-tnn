@@ -85,4 +85,41 @@ contents:
   run correctly, the data conversion process must be restarted.
 - The data conversion jobs are hard-coded to request 8GB of memory, which may be overkill
   for small tasks or when using a large number of jobs.
+- If a job is requested with multiple cpu cores, the data converter will use more resources
+  than what is allocated to it, so each job runs on a single cpu.
 - Not a bug, but the data converter automatically removes NaN values from the dataset.
+
+## Training & Evaluation
+
+The evaluation subcommand is currently unfinished, so evaluation is currently done as
+part of the training step. 
+
+At the moment, the model architecture is hard-coded in the training subcommand. I plan
+to set up a system similar to that of IceTop-CNN so that custom model architectures can
+be loaded and used for training in the future. Training is far less developed than data
+conversion.
+
+Training takes a single dataset and uses the hyperparameters specified on the command
+line. You can use a GPU to train the model by specifying the pytorch GPU number associated
+with that GPU.
+
+You can use the `-S` argument to filter the dataset and use only data that matches the
+specified selection. IceTop-TNN uses GraphNeT's SQLite backend, so the selection string is
+a SQLite condition that is spliced into the query. You can see the source query in the
+`query_table` method in the `SQLiteDataset` class.
+
+The model weights and evaulation results are stored in the specified output directory.
+Additionally, a model configuration file that can be used to load the model into GraphNeT
+is also saved as `config.yml`. IceTop-TNN has its own model information file, `model.yml`,
+which is also saved to the output directory. The data that is stored in `model.yml` can be
+found in the `icetoptnn/training/training_info.py` file.
+
+### Issues/Quirks
+
+- As stated previously, evaluation happens during training, so in order to re-evaluate
+  the model, you must train a new one. This will be fixed eventually.
+- The arguments to set the seed used to train the model do not currently completely work.
+- At the moment, you can only use a single dataset when training.
+- There is no way to run training on a condor cluster, it has to be performed locally.
+- The training script does not save checkpoints, so if training is interrupted, it will
+  have to be restarted.
