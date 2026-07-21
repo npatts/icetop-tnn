@@ -65,10 +65,10 @@ def apply_arguments(subparsers) -> None:
     """Apply arguments to the data subcommand"""
     global ap_root_parser, ap_create_parser;
     
-    ap_root_parser = subparsers.add_parser('data', help='generate graphnet datasets',
+    ap_root_parser = subparsers.add_parser('data', help='create graphnet datasets',
                                            description=
-                                           'Generates GraphNeT datasets. All input directories are treated as '
-                                           'a single input dataset. The generated datasets will be outputted to '
+                                           'Creates GraphNeT datasets. All input files are treated as '
+                                           'a single input dataset. The converted dataset will be created in '
                                            'the output directory.');
     ap_root_subparsers = ap_root_parser.add_subparsers(title='subcommands', dest='data_subcommand')
 
@@ -77,8 +77,8 @@ def apply_arguments(subparsers) -> None:
                                                      help='create datasets from raw icecube events')
     ap_create_parser.add_argument(metavar='output', type=Path, help='output directory', dest='data_create_output',
                                   default='./data/')
-    ap_create_parser.add_argument(metavar='input', type=Path, help='input directories', dest='data_create_inputs', nargs='+',
-                                  default='./data.i3')
+    ap_create_parser.add_argument(metavar='input', type=Path, help='input specification files', dest='data_create_inputs', nargs='+',
+                                  default='./input.yml')
     ap_create_parser.add_argument('-G', type=Path, dest='data_create_recoverygcd',
                                   help='Use the specified GCD as a placeholder if a event has no associated GCD');
 
