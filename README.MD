@@ -108,6 +108,11 @@ specified selection. IceTop-TNN uses GraphNeT's SQLite backend, so the selection
 a SQLite condition that is spliced into the query. You can see the source query in the
 `query_table` method in the `SQLiteDataset` class.
 
+You can set the seeds that IceTop-TNN uses for training with the `--seed` and `--split-seed`
+arguments. `--seed` sets the seed passed to `pytorch_lightning.seed_everything` and impacts
+the model's final weights. `--split-seed` changes how the dataset is split, it defaults to
+a constant defined in the trainer code.
+
 The model weights and evaulation results are stored in the specified output directory.
 Additionally, a model configuration file that can be used to load the model into GraphNeT
 is also saved as `config.yml`. IceTop-TNN has its own model information file, `model.yml`,
@@ -118,7 +123,6 @@ found in the `icetoptnn/training/training_info.py` file.
 
 - As stated previously, evaluation happens during training, so in order to re-evaluate
   the model, you must train a new one. This will be fixed eventually.
-- The arguments to set the seed used to train the model do not currently completely work.
 - At the moment, you can only use a single dataset when training.
 - There is no way to run training on a condor cluster, it has to be performed locally.
 - The training script does not save checkpoints, so if training is interrupted, it will
