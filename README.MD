@@ -31,6 +31,24 @@ can be invoked by running
 python3 -m icetoptnn
 ```
 
+## Environment File
+
+The `environment.txt` file stores user-specific settings for IceTop-TNN. It is loaded
+at startup in order to find the files that IceTop-TNN needs to run. All of the current
+configuration values are listed below:
+
+- `ICETOP_TNN_VENV_ROOT` - The root of the python venv that IceTop-TNN's dependencies
+  are installed to.
+- `ICETOP_TNN_MODEL_DIR` - The directory where models are expected to be stored. Used
+  by the assessment notebooks to find models to include.
+- `PYTHON_EXECUTABLE` - The name of the python executable.
+- `CONDOR_SCRATCH_DIR` - The directory where files from jobs should be stored for use
+  by tasks running on a condor cluster.
+- `CVMWRAP_CVMFS_PATH` - The path to the CVMFS image that `cvmwrap` should use when
+  starting IceTop-TNN for condor jobs.
+- `CVMWRAP_ICETRAY_VERSION` - The version of IceTray that `cvmwrap` should launch when
+  starting IceTop-TNN for condor jobs.
+
 ## Data Conversion
 
 GraphNeT cannot use raw i3 files when training models, instead, they first have to
